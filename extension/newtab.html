@@ -22,12 +22,40 @@
     max-width: 640px;
     width: 100%;
   }
-  .logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 12px;
-    border-radius: 16px;
+  
+  /* --- UPGRADED LOGO STYLES --- */
+  .logo-wrapper {
+    width: 84px;
+    height: 84px;
+    margin: 0 auto 16px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(108, 99, 255, 0.2), rgba(0, 242, 254, 0.1));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 22px;
+    box-shadow: 
+      0 8px 32px 0 rgba(0, 0, 0, 0.37),
+      0 0 20px rgba(108, 99, 255, 0.2);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+    cursor: pointer;
   }
+  .logo-wrapper:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 
+      0 12px 40px 0 rgba(0, 0, 0, 0.5),
+      0 0 30px rgba(0, 242, 254, 0.4);
+  }
+  .logo-wrapper svg {
+    width: 48px;
+    height: 48px;
+    transition: filter 0.3s ease;
+  }
+  .logo-wrapper:hover svg {
+    filter: drop-shadow(0 0 8px #00f2fe);
+  }
+  /* ---------------------------- */
+
   h1 {
     font-size: 2rem;
     font-weight: 700;
@@ -114,7 +142,23 @@
 </head>
 <body>
 <div class="container">
-  <img class="logo" src="icon.png" alt="Aurora Browser">
+  
+  <div class="logo-wrapper">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="auroraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00f2fe" />
+          <stop offset="50%" stop-color="#4facfe" />
+          <stop offset="100%" stop-color="#6c63ff" />
+        </linearGradient>
+      </defs>
+      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="url(#auroraGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 6C14.5 8.5 14.5 15.5 12 18" stroke="url(#auroraGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 6C9.5 8.5 9.5 15.5 12 18" stroke="url(#auroraGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M2 12H22" stroke="url(#auroraGrad)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
   <h1>Aurora Browser</h1>
   <p class="subtitle">Built on Chromium &middot; Auto-updating &middot; Private by default</p>
 
