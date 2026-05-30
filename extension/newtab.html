@@ -9,141 +9,165 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    color: #fff;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 20px;
+    transition: background 0.4s, color 0.4s;
   }
   .container {
     text-align: center;
-    max-width: 640px;
+    max-width: 680px;
     width: 100%;
   }
-  
-  /* --- UPGRADED LOGO STYLES --- */
+
   .logo-wrapper {
-    width: 84px;
-    height: 84px;
+    width: 84px; height: 84px;
     margin: 0 auto 16px auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     background: linear-gradient(135deg, rgba(108, 99, 255, 0.2), rgba(0, 242, 254, 0.1));
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 22px;
-    box-shadow: 
-      0 8px 32px 0 rgba(0, 0, 0, 0.37),
-      0 0 20px rgba(108, 99, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 20px rgba(108, 99, 255, 0.2);
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
     cursor: pointer;
   }
   .logo-wrapper:hover {
     transform: translateY(-4px) scale(1.05);
-    box-shadow: 
-      0 12px 40px 0 rgba(0, 0, 0, 0.5),
-      0 0 30px rgba(0, 242, 254, 0.4);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 242, 254, 0.4);
   }
   .logo-wrapper svg {
-    width: 48px;
-    height: 48px;
+    width: 48px; height: 48px;
     transition: filter 0.3s ease;
   }
   .logo-wrapper:hover svg {
     filter: drop-shadow(0 0 8px #00f2fe);
   }
-  /* ---------------------------- */
 
   h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-size: 1.8rem; font-weight: 700;
+    margin-bottom: 2px; letter-spacing: -0.5px;
   }
   .subtitle {
-    color: #a0a0c0;
+    font-size: 0.85rem; opacity: 0.6;
     margin-bottom: 28px;
-    font-size: 0.95rem;
   }
   .search-box {
-    display: flex;
-    background: rgba(255,255,255,0.08);
+    display: flex; align-items: center;
+    background: rgba(255,255,255,0.1);
     border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 28px;
-    padding: 4px 4px 4px 20px;
-    margin-bottom: 36px;
-    backdrop-filter: blur(8px);
+    border-radius: 32px;
+    padding: 4px 4px 4px 22px;
+    margin-bottom: 32px;
+    backdrop-filter: blur(12px);
+    transition: box-shadow 0.3s, border-color 0.3s;
+  }
+  .search-box:focus-within {
+    box-shadow: 0 0 0 3px rgba(108,99,255,0.25);
+    border-color: rgba(108,99,255,0.5);
   }
   .search-box input {
-    flex: 1;
-    background: none;
-    border: none;
-    outline: none;
-    color: #fff;
-    font-size: 1rem;
-    padding: 12px 0;
+    flex: 1; background: none; border: none; outline: none;
+    color: inherit; font-size: 1rem; padding: 14px 0;
   }
-  .search-box input::placeholder { color: #8080aa; }
+  .search-box input::placeholder { opacity: 0.4; }
   .search-box button {
-    background: #6c63ff;
-    border: none;
-    border-radius: 24px;
-    color: #fff;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 10px 24px;
-    transition: background 0.2s;
+    background: #6c63ff; border: none; border-radius: 28px;
+    color: #fff; cursor: pointer; font-size: 0.9rem;
+    font-weight: 600; padding: 10px 24px;
+    transition: background 0.2s, transform 0.15s;
   }
-  .search-box button:hover { background: #5a52e0; }
-  .section {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+  .search-box button:hover { background: #5a52e0; transform: scale(1.02); }
+  .search-box button:active { transform: scale(0.97); }
+
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 24px;
     text-align: left;
   }
-  .section h2 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: #b0b0d0;
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 18px 20px;
+    backdrop-filter: blur(8px);
+    transition: background 0.3s, transform 0.2s;
   }
-  .section ul {
-    list-style: none;
-    font-size: 0.9rem;
-    color: #c0c0e0;
+  .card:hover { transform: translateY(-2px); }
+  .card h2 {
+    font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.5;
   }
-  .section ul li::before {
-    content: "\2022";
-    color: #6c63ff;
-    font-weight: bold;
-    display: inline-block;
-    width: 1.2em;
+  .card ul { list-style: none; font-size: 0.88rem; }
+  .card ul li { margin-bottom: 5px; line-height: 1.4; display: flex; align-items: flex-start; gap: 6px; }
+  .card ul li .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .update-item .dot { background: #6c63ff; }
+  .link-item .dot { background: #00c9a7; }
+
+  .link-item a { color: inherit; text-decoration: none; opacity: 0.75; transition: opacity 0.2s; }
+  .link-item a:hover { opacity: 1; text-decoration: underline; }
+
+  .theme-bar {
+    display: flex; align-items: center; gap: 10px;
+    justify-content: center; margin-top: 12px; padding: 10px 0;
   }
-  .section ul li { margin-bottom: 4px; }
-  .btn {
-    display: inline-block;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 24px;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 10px 28px;
-    text-decoration: none;
-    transition: background 0.2s;
-    margin-top: 8px;
+  .theme-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
   }
-  .btn:hover { background: rgba(255,255,255,0.15); }
+  .theme-dot:hover { transform: scale(1.2); }
+  .theme-dot.active { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+  .theme-dot.custom {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; border-style: dashed;
+  }
+  .theme-picker { display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .theme-picker.open { display: flex; }
+  .theme-picker-inner {
+    background: #1a1a2e; border-radius: 16px; padding: 28px 32px;
+    max-width: 400px; width: 90%; color: #fff;
+  }
+  .theme-picker-inner h3 { margin-bottom: 16px; font-size: 1.1rem; }
+  .theme-picker-inner label {
+    display: block; font-size: 0.85rem; opacity: 0.7; margin-bottom: 4px; margin-top: 12px;
+  }
+  .theme-picker-inner input[type="color"] {
+    width: 100%; height: 40px; border: none; border-radius: 8px;
+    background: none; cursor: pointer;
+  }
+  .theme-picker-inner input[type="text"] {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 0.9rem;
+  }
+  .theme-picker-btns { display: flex; gap: 8px; margin-top: 18px; }
+  .theme-picker-btns button {
+    flex: 1; padding: 10px; border: none; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-primary { background: #6c63ff; color: #fff; }
+  .btn-primary:hover { background: #5a52e0; }
+  .btn-ghost { background: rgba(255,255,255,0.08); color: inherit; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.15); }
+
+  @media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+
+  .error-state { opacity: 0.5; font-style: italic; font-size: 0.85rem; }
+
+  .version-tag {
+    position: fixed; bottom: 16px; right: 20px;
+    font-size: 0.75rem; opacity: 0.25;
+  }
 </style>
 </head>
-<body>
+<body id="body">
+
 <div class="container">
-  
+
   <div class="logo-wrapper">
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -160,45 +184,168 @@
     </svg>
   </div>
 
-  <h1>Aurora Browser</h1>
-  <p class="subtitle">Built on Chromium &middot; Auto-updating &middot; Private by default</p>
+  <h1 id="title">Aurora Browser</h1>
+  <p class="subtitle" id="subtitle">Built on Chromium · Auto-updating · Private by default</p>
 
   <form class="search-box" action="https://www.google.com/search" method="GET" target="_top">
-    <input type="text" name="q" placeholder="Search Google or type a URL" autofocus>
+    <input type="text" name="q" placeholder="Search Google or type a URL" autofocus id="searchInput">
     <button type="submit">Search</button>
   </form>
 
-  <div class="section">
-    <h2>What's New</h2>
-    <ul id="updates">
-      <li>Checking for updates...</li>
-    </ul>
+  <div class="grid">
+    <div class="card">
+      <h2>What's New</h2>
+      <ul id="updates"><li class="error-state">Loading...</li></ul>
+    </div>
+    <div class="card">
+      <h2>Links</h2>
+      <ul>
+        <li class="link-item"><span class="dot"></span><a href="https://github.com/Draftiermovie66/Aurora-Browser" target="_blank">Source Code</a></li>
+        <li class="link-item"><span class="dot"></span><a href="https://github.com/Draftiermovie66/Aurora-Browser/releases" target="_blank">Releases</a></li>
+        <li class="link-item"><span class="dot"></span><a href="https://github.com/Draftiermovie66/Aurora-Browser/issues" target="_blank">Report Issue</a></li>
+      </ul>
+    </div>
   </div>
 
-  <a class="btn" href="https://github.com/Draftiermovie66/Aurora-Browser" target="_blank">
-    View Source Code
-  </a>
+  <div class="theme-bar" id="themeBar"></div>
+</div>
+
+<div class="version-tag" id="versionTag">Aurora Browser</div>
+
+<div class="theme-picker" id="themePicker">
+  <div class="theme-picker-inner">
+    <h3>Custom Theme</h3>
+    <label>Background color</label>
+    <input type="color" id="bgColor" value="#0f0c29">
+    <label>Text color</label>
+    <input type="color" id="txtColor" value="#ffffff">
+    <label>Accent color</label>
+    <input type="color" id="accColor" value="#6c63ff">
+    <label>Card background (hex or rgba)</label>
+    <input type="text" id="cardBg" value="rgba(255,255,255,0.06)">
+    <label>Background image URL (optional)</label>
+    <input type="text" id="bgImage" placeholder="https://... or leave empty">
+    <div class="theme-picker-btns">
+      <button class="btn-primary" id="applyTheme">Apply</button>
+      <button class="btn-ghost" id="closePicker">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script>
-  fetch('https://api.github.com/repos/Draftiermovie66/Aurora-Browser/releases/latest')
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(data => {
-      const ul = document.getElementById('updates');
-      ul.innerHTML = '';
-      const release = document.createElement('li');
-      release.innerHTML = '<strong>' + data.tag_name + '</strong> released';
-      ul.appendChild(release);
-      const notes = data.body ? data.body.split('\\n').filter(l => l.trim()) : [];
-      notes.slice(0, 5).forEach(line => {
-        const li = document.createElement('li');
-        li.textContent = line.replace(/^[-*]\s*/, '');
-        ul.appendChild(li);
-      });
-    })
-    .catch(() => {
-      document.getElementById('updates').innerHTML = '<li>No update information available</li>';
+const THEMES = [
+  { id: 'cosmic', label: 'Cosmic', bg: '#0f0c29', txt: '#ffffff', acc: '#6c63ff', card: 'rgba(255,255,255,0.06)', img: '' },
+  { id: 'ocean', label: 'Ocean', bg: '#0a1628', txt: '#e0f0ff', acc: '#00b4d8', card: 'rgba(255,255,255,0.05)', img: '' },
+  { id: 'forest', label: 'Forest', bg: '#0a1a0f', txt: '#e0ffe0', acc: '#2ecc71', card: 'rgba(255,255,255,0.05)', img: '' },
+  { id: 'sunset', label: 'Sunset', bg: '#1a0a0a', txt: '#ffe0d0', acc: '#e67e22', card: 'rgba(255,255,255,0.05)', img: '' },
+  { id: 'light', label: 'Light', bg: '#f5f5f5', txt: '#1a1a2e', acc: '#6c63ff', card: 'rgba(0,0,0,0.04)', img: '' },
+  { id: 'midnight', label: 'Midnight', bg: '#0d0d0d', txt: '#c0c0c0', acc: '#a855f7', card: 'rgba(255,255,255,0.04)', img: '' },
+  { id: 'aurora', label: 'Aurora', bg: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)', txt: '#ffffff', acc: '#6c63ff', card: 'rgba(255,255,255,0.06)', img: '' },
+];
+
+function applyTheme(t) {
+  const b = document.body;
+  const isGrad = t.bg && t.bg.startsWith('linear-gradient');
+  b.style.background = isGrad ? t.bg : (t.img ? 'url(' + t.img + ') center/cover no-repeat' : t.bg);
+  b.style.color = t.txt || '#fff';
+  if (t.img || isGrad) b.style.backgroundColor = '';
+  b.style.setProperty('--accent', t.acc || '#6c63ff');
+  document.querySelectorAll('.search-box button').forEach(el => el.style.background = t.acc || '#6c63ff');
+  document.querySelectorAll('.card').forEach(el => el.style.background = t.card || 'rgba(255,255,255,0.06)');
+  document.querySelectorAll('.update-item .dot').forEach(el => el.style.background = t.acc || '#6c63ff');
+  const dots = document.querySelectorAll('.theme-dot');
+  dots.forEach(d => d.classList.toggle('active', d.dataset.theme === t.id));
+  document.querySelectorAll('.logo-wrapper').forEach(el => {
+    if (t.acc) el.style.boxShadow = '0 8px 32px 0 rgba(0,0,0,0.37), 0 0 20px ' + t.acc + '40';
+  });
+}
+
+function buildThemeBar() {
+  const bar = document.getElementById('themeBar');
+  bar.innerHTML = '';
+  let activeId = 'cosmic';
+  const saved = localStorage.getItem('aurora-theme');
+  if (saved) { try { activeId = JSON.parse(saved).id; } catch(e) {} }
+  THEMES.forEach(t => {
+    const dot = document.createElement('div');
+    dot.className = 'theme-dot' + (t.id === activeId ? ' active' : '');
+    dot.dataset.theme = t.id;
+    dot.title = t.label;
+    dot.style.background = t.bg.startsWith('linear-gradient') ? t.bg : t.bg;
+    dot.addEventListener('click', () => {
+      localStorage.setItem('aurora-theme', JSON.stringify(t));
+      applyTheme(t);
+      buildThemeBar();
     });
+    bar.appendChild(dot);
+  });
+  const custom = document.createElement('div');
+  custom.className = 'theme-dot custom';
+  custom.title = 'Custom theme';
+  custom.textContent = '+';
+  custom.addEventListener('click', () => {
+    const saved = localStorage.getItem('aurora-custom-theme');
+    if (saved) {
+      try {
+        const c = JSON.parse(saved);
+        document.getElementById('bgColor').value = c.bg;
+        document.getElementById('txtColor').value = c.txt;
+        document.getElementById('accColor').value = c.acc;
+        document.getElementById('cardBg').value = c.card;
+        document.getElementById('bgImage').value = c.img || '';
+      } catch(e) {}
+    }
+    document.getElementById('themePicker').classList.add('open');
+  });
+  bar.appendChild(custom);
+  const savedTheme = localStorage.getItem('aurora-theme');
+  if (savedTheme) { try { applyTheme(JSON.parse(savedTheme)); } catch(e) {} }
+}
+
+document.getElementById('closePicker').addEventListener('click', () => {
+  document.getElementById('themePicker').classList.remove('open');
+});
+
+document.getElementById('applyTheme').addEventListener('click', () => {
+  const t = {
+    id: 'custom', label: 'Custom',
+    bg: document.getElementById('bgColor').value,
+    txt: document.getElementById('txtColor').value,
+    acc: document.getElementById('accColor').value,
+    card: document.getElementById('cardBg').value,
+    img: document.getElementById('bgImage').value,
+  };
+  localStorage.setItem('aurora-theme', JSON.stringify(t));
+  localStorage.setItem('aurora-custom-theme', JSON.stringify(t));
+  applyTheme(t);
+  buildThemeBar();
+  document.getElementById('themePicker').classList.remove('open');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.getElementById('themePicker').classList.remove('open');
+});
+
+fetch('https://api.github.com/repos/Draftiermovie66/Aurora-Browser/releases/latest')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(data => {
+    const ul = document.getElementById('updates'); ul.innerHTML = '';
+    const tag = document.createElement('li'); tag.className = 'update-item';
+    tag.innerHTML = '<span class="dot"></span><strong>' + data.tag_name + '</strong> released';
+    ul.appendChild(tag);
+    const notes = data.body ? data.body.split('\n').filter(l => l.trim()) : [];
+    notes.slice(0, 4).forEach(line => {
+      const li = document.createElement('li'); li.className = 'update-item';
+      li.innerHTML = '<span class="dot"></span>' + line.replace(/^[-*]\s*/, '');
+      ul.appendChild(li);
+    });
+    document.getElementById('versionTag').textContent = data.tag_name;
+  })
+  .catch(() => {
+    document.getElementById('updates').innerHTML = '<li class="error-state">No update info available</li>';
+  });
+
+buildThemeBar();
 </script>
 </body>
 </html>
