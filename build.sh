@@ -2,10 +2,12 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
+VERSION="${VERSION:-1.1.1}"
+
 case "${1:-deb}" in
   deb)
-    echo "==> Building .deb package ..."
-    PKG="$DIR/aurora-browser_1.1.1_amd64.deb"
+    echo "==> Building .deb package (version $VERSION) ..."
+    PKG="$DIR/aurora-browser_${VERSION}_amd64.deb"
     rm -f "$PKG"
 
     TMP=$(mktemp -d)
@@ -18,7 +20,7 @@ case "${1:-deb}" in
     # control
     cat > "$TMP/DEBIAN/control" <<'CTRL'
 Package: aurora-browser
-Version: 1.1.1
+Version: ${VERSION}
 Section: web
 Priority: optional
 Architecture: amd64
@@ -122,8 +124,11 @@ DESK
     powershell.exe -File "$DIR/windows/build-windows.ps1" "${@:2}" 2>/dev/null \
       || echo "Run 'powershell.exe .\windows\build-windows.ps1' on Windows."
     ;;
+  release)
+    bash "$DIR/release.sh" "${2:-${VERSION}}" "${3:---dry}"
+    ;;
   *)
-    echo "Usage: $0 {deb|windows}"
+    echo "Usage: $0 {deb|windows|release} [version]"
     exit 1
     ;;
 esac
