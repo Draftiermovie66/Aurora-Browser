@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurora Browser</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    text-align: center;
+    max-width: 640px;
+    width: 100%;
+  }
+  .logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: #a0a0c0;
+    margin-bottom: 28px;
+    font-size: 0.95rem;
+  }
+  .search-box {
+    display: flex;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 28px;
+    padding: 4px 4px 4px 20px;
+    margin-bottom: 36px;
+    backdrop-filter: blur(8px);
+  }
+  .search-box input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 1rem;
+    padding: 12px 0;
+  }
+  .search-box input::placeholder { color: #8080aa; }
+  .search-box button {
+    background: #6c63ff;
+    border: none;
+    border-radius: 24px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 10px 24px;
+    transition: background 0.2s;
+  }
+  .search-box button:hover { background: #5a52e0; }
+  .section {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .section h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #b0b0d0;
+  }
+  .section ul {
+    list-style: none;
+    font-size: 0.9rem;
+    color: #c0c0e0;
+  }
+  .section ul li::before {
+    content: "\2022";
+    color: #6c63ff;
+    font-weight: bold;
+    display: inline-block;
+    width: 1.2em;
+  }
+  .section ul li { margin-bottom: 4px; }
+  .btn {
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 10px 28px;
+    text-decoration: none;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+  .btn:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+<div class="container">
+  <img class="logo" src="icon.png" alt="Aurora Browser">
+  <h1>Aurora Browser</h1>
+  <p class="subtitle">Built on Chromium &middot; Auto-updating &middot; Private by default</p>
+
+  <form class="search-box" action="https://www.google.com/search" method="GET" target="_top">
+    <input type="text" name="q" placeholder="Search Google or type a URL" autofocus>
+    <button type="submit">Search</button>
+  </form>
+
+  <div class="section">
+    <h2>What's New</h2>
+    <ul id="updates">
+      <li>Checking for updates...</li>
+    </ul>
+  </div>
+
+  <a class="btn" href="https://github.com/Draftiermovie66/Aurora-Browser" target="_blank">
+    View Source Code
+  </a>
+</div>
+
+<script>
+  fetch('https://api.github.com/repos/Draftiermovie66/Aurora-Browser/releases/latest')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => {
+      const ul = document.getElementById('updates');
+      ul.innerHTML = '';
+      const release = document.createElement('li');
+      release.innerHTML = '<strong>' + data.tag_name + '</strong> released';
+      ul.appendChild(release);
+      const notes = data.body ? data.body.split('\\n').filter(l => l.trim()) : [];
+      notes.slice(0, 5).forEach(line => {
+        const li = document.createElement('li');
+        li.textContent = line.replace(/^[-*]\s*/, '');
+        ul.appendChild(li);
+      });
+    })
+    .catch(() => {
+      document.getElementById('updates').innerHTML = '<li>No update information available</li>';
+    });
+</script>
+</body>
+</html>
