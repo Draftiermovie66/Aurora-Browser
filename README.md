@@ -5,7 +5,7 @@ A custom Chromium-based browser with a self-contained profile and auto-update.
 ## Install
 
 ```bash
-sudo dpkg -i aurora-browser_1.0.0_amd64.deb
+sudo dpkg -i aurora-browser_1.1.0_amd64.deb
 ```
 
 The browser engine is downloaded automatically during installation.
