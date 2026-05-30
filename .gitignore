@@ -1,3 +1,5 @@
 chrome-linux/
 chrome-linux.old/
 profile/
+*.deb
+build/
