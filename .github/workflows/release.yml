@@ -70,14 +70,14 @@ jobs:
       - name: Build Windows package
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          mkdir -p build/aurora-browser-${VERSION}-win
+          mkdir -p build/aurora-browser-${VERSION}-win/extension
+          mkdir -p build/aurora-browser-${VERSION}-win/profile
 
           cp -r extension/* build/aurora-browser-${VERSION}-win/extension/
           cp windows/update.ps1 build/aurora-browser-${VERSION}-win/
           cp aurora.png build/aurora-browser-${VERSION}-win/
           echo 'REPO="Draftiermovie66/Aurora-Browser"' > build/aurora-browser-${VERSION}-win/update.conf
           echo "CHROMIUM_VERSION=0" > build/aurora-browser-${VERSION}-win/version.txt
-          mkdir -p build/aurora-browser-${VERSION}-win/profile
 
           mcs -out:build/aurora-browser-${VERSION}-win/aurora-browser.exe \
             -target:winexe \
