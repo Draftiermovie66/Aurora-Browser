@@ -22,34 +22,52 @@ jobs:
           sudo apt-get install -y dpkg-dev fakeroot rpm
 
       - name: Validate .deb build script syntax
-        run: bash -n linux/debian/build.sh && echo "debian build.sh OK"
+        run: |
+          bash -n packages/linux/debian/build.sh && echo "debian build.sh OK (canonical)"
+          bash -n linux/debian/build.sh && echo "debian shim OK"
 
       - name: Validate .rpm build script syntax
-        run: bash -n linux/redhat/build.sh && echo "redhat build.sh OK"
+        run: |
+          bash -n packages/linux/redhat/build.sh && echo "redhat build.sh OK (canonical)"
+          bash -n linux/redhat/build.sh && echo "redhat shim OK"
 
       - name: Validate AppImage build script syntax
-        run: bash -n linux/appimage/build.sh && echo "appimage build.sh OK"
+        run: |
+          bash -n packages/linux/appimage/build.sh && echo "appimage build.sh OK (canonical)"
+          bash -n linux/appimage/build.sh && echo "appimage shim OK"
 
       - name: Validate macOS build scripts syntax
         run: |
-          bash -n macos/build.sh && echo "macos build.sh OK"
-          bash -n macos/update.sh && echo "macos update.sh OK"
+          bash -n packages/macos/build.sh && echo "macos build.sh OK (canonical)"
+          bash -n packages/macos/update.sh && echo "macos update.sh OK"
+          bash -n macos/build.sh && echo "macos shim OK"
 
       - name: Validate PKGBUILD
         run: |
-          # Rough syntax sanity: pkgver matches release and required fields exist.
-          source <(grep -E '^(pkgname|pkgver|pkgrel|arch|url|license|depends)=' linux/arch/PKGBUILD | sed 's/^\([^=]*\)=\(.*\)$/\1="\2"/')
-          for v in pkgname pkgver pkgrel arch url license depends; do
-            val="${!v}"
-            if [ -z "$val" ]; then
-              echo "Missing PKGBUILD field: $v"
-              exit 1
+          # Validate canonical PKGBUILD; legacy path is a copy
+          for PKG in packages/linux/arch/PKGBUILD linux/arch/PKGBUILD; do
+            if [ -f "$PKG" ]; then
+              echo "--- Checking $PKG ---"
+              bash -c "source <(grep -E '^(pkgname|pkgver|pkgrel|arch|url|license|depends)=' \"$PKG\" | sed 's/^\([^=]*\)=\(.*\)$/\1=\"\2\"/'); for v in pkgname pkgver pkgrel arch url license depends; do val=\"\${!v}\"; if [ -z \"\$val\" ]; then echo \"Missing PKGBUILD field: \$v in $PKG\"; exit 1; fi; done; echo \"PKGBUILD OK ($PKG): \${pkgname} \${pkgver}-\${pkgrel}\""
             fi
           done
-          echo "PKGBUILD OK: ${pkgname} ${pkgver}-${pkgrel}"
+
+      - name: Validate VERSION sync
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION file: $VER"
+          EXT_VER=$(node -p "require('./extension/package.json').version")
+          echo "extension/package.json: $EXT_VER"
+          PKG_VER=$(grep '^pkgver=' packages/linux/arch/PKGBUILD | cut -d= -f2)
+          echo "PKGBUILD pkgver: $PKG_VER"
+          if [ "$VER" != "$EXT_VER" ] || [ "$VER" != "$PKG_VER" ]; then
+            echo "ERROR: Version drift — VERSION ($VER) vs extension ($EXT_VER) vs PKGBUILD ($PKG_VER)"
+            exit 1
+          fi
+          echo "Version sync OK"
 
       - name: Smoke test update.sh asset lookup
-        run: bash scripts/smoke-update-check.sh
+        run: bash scripts/checks/smoke-update-check.sh
 
       - name: Validate workflow YAML
-        run: python3 scripts/validate-yaml.py
+        run: python3 scripts/checks/validate-yaml.py
