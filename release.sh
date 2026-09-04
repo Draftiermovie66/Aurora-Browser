@@ -4,51 +4,69 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <version> [--push]"
-  echo "  <version>  e.g. v1.2.0"
+  echo "  <version>  e.g. v2.0.1"
   echo "  --push     Actually create the GitHub release (dry-run otherwise)"
   exit 1
 fi
 
 TAG="$1"
+V="${TAG#v}"
 PUSH=false
 [ "${2:-}" = "--push" ] && PUSH=true
 
 echo "==> Aurora Browser Release $TAG"
 echo ""
 
-# ---- Build Linux .deb ----
-echo "--- Building Linux .deb ..."
-bash "$DIR/linux/build.sh"
+# ---- Build Linux packages ----
+echo "--- Building Debian (.deb) ..."
+bash "$DIR/linux/debian/build.sh"
+DEB="$DIR/aurora-browser_${V}_amd64.deb"
+
+echo "--- Building AppImage ..."
+bash "$DIR/linux/appimage/build.sh"
+APPIMAGE="$DIR/build/Aurora-Browser-${V}-x86_64.AppImage"
+
+echo "--- Building RedHat (.rpm) ..."
+bash "$DIR/linux/redhat/build.sh"
+RPM="$DIR/build/aurora-browser-${V}-1.x86_64.rpm"
+
+# ---- Build macOS (BETA) ----
+echo "--- Building macOS (BETA) ..."
+bash "$DIR/macos/build.sh"
+DMG="$DIR/build/Aurora-Browser-${V}-BETA.dmg"
 
 # ---- Build Windows ZIP (if on Windows) ----
-WIN_ZIP="$DIR/aurora-browser-${TAG#v}-win.zip"
+WIN_ZIP="$DIR/build/aurora-browser-${V}-win.zip"
 if command -v powershell.exe &>/dev/null; then
   echo "--- Building Windows ZIP ..."
-  powershell.exe -File "$DIR/windows/build.ps1" -version "${TAG#v}"
-  BUILD_DIR="$DIR/build/aurora-browser-${TAG#v}-win"
+  powershell.exe -File "$DIR/windows/build.ps1" -version "$V"
+  BUILD_DIR="$DIR/build/aurora-browser-${V}-win"
   if [ -d "$BUILD_DIR" ]; then
-    (cd "$DIR/build" && zip -r "$WIN_ZIP" "aurora-browser-${TAG#v}-win")
-    echo "  Windows ZIP: $WIN_ZIP"
+    (cd "$DIR/build" && zip -r "$WIN_ZIP" "aurora-browser-${V}-win")
   fi
 else
   echo "  Skipping Windows ZIP (not on Windows)"
 fi
 
 # ---- Create GitHub Release ----
-LINUX_DEB="$DIR/aurora-browser_${TAG#v}_amd64.deb"
+ASSETS=("$DEB")
+[ -f "$APPIMAGE" ] && ASSETS+=("$APPIMAGE")
+[ -f "$RPM" ] && ASSETS+=("$RPM")
+[ -f "$DMG" ] && ASSETS+=("$DMG")
+[ -f "$WIN_ZIP" ] && ASSETS+=("$WIN_ZIP")
 
 if $PUSH; then
   echo "--- Creating GitHub release $TAG ..."
   gh release create "$TAG" \
     --title "Aurora Browser $TAG" \
-    --notes "See extension/newtab.html for what's new in this release." \
-    "$LINUX_DEB" \
-    ${WIN_ZIP:+"$WIN_ZIP"}
+    --notes "Multi-platform release. See extension/react app for what's new." \
+    "${ASSETS[@]}"
   echo "==> Release $TAG created!"
 else
   echo "==> Dry-run mode. Release assets ready:"
-  echo "    $LINUX_DEB"
-  [ -f "$WIN_ZIP" ] && echo "    $WIN_ZIP"
+  for a in "${ASSETS[@]}"; do
+    [ -f "$a" ] && echo "    $a"
+  done
   echo ""
   echo "Run '$0 $TAG --push' to create the release."
 fi

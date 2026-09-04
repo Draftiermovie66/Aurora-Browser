@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$DIR/.." && pwd)"
+ROOT="$(cd "$DIR/../.." && pwd)"
+COMMON="$DIR/../common"
 
-VERSION="${VERSION:-2.0.0}"
+VERSION="${VERSION:-2.0.1}"
 
 # Build React extension if node_modules exists
 if [ -d "$ROOT/extension/node_modules" ]; then
@@ -48,15 +49,15 @@ PINST
 chmod +x "$TMP/DEBIAN/postinst"
 
 # launcher
-cp "$DIR/launch.sh" "$TMP/opt/aurora-browser/launch-aurora.sh"
+cp "$COMMON/launch.sh" "$TMP/opt/aurora-browser/launch-aurora.sh"
 chmod +x "$TMP/opt/aurora-browser/launch-aurora.sh"
 
-cp "$DIR/update.sh" "$TMP/opt/aurora-browser/update.sh"
+cp "$COMMON/update.sh" "$TMP/opt/aurora-browser/update.sh"
 chmod +x "$TMP/opt/aurora-browser/update.sh"
 
-cp "$DIR/update.conf" "$TMP/opt/aurora-browser/update.conf"
+cp "$COMMON/update.conf" "$TMP/opt/aurora-browser/update.conf"
 
-cp "$DIR/setup-sandbox.sh" "$TMP/opt/aurora-browser/setup-sandbox.sh"
+cp "$COMMON/setup-sandbox.sh" "$TMP/opt/aurora-browser/setup-sandbox.sh"
 chmod +x "$TMP/opt/aurora-browser/setup-sandbox.sh"
 
 echo "CHROMIUM_VERSION=0" > "$TMP/opt/aurora-browser/version.txt"

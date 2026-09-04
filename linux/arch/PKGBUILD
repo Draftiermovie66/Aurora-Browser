@@ -1,8 +1,8 @@
 # Maintainer: Aurora Browser <draftiermovie66@users.noreply.github.com>
 pkgname=aurora-browser
-pkgver=2.0.0
+pkgver=2.0.1
 pkgrel=1
-pkgdesc='Chromium-based browser with auto-update and custom new tab page'
+pkgdesc='Aurora-based browser with auto-update and custom new tab page'
 arch=('x86_64')
 url='https://github.com/Draftiermovie66/Aurora-Browser'
 license=('MIT')
@@ -18,10 +18,10 @@ package() {
 }
 
 post_install() {
-  echo ">>> Run /opt/aurora-browser/update.sh to download Chromium"
+  echo ">>> Run /opt/aurora-browser/update.sh to download the Aurora engine"
   echo ">>> or open Aurora Browser from your application menu"
 }
 
 post_upgrade() {
-  echo ">>> Run /opt/aurora-browser/update.sh to update Chromium"
+  echo ">>> Run /opt/aurora-browser/update.sh to update the Aurora engine"
 }

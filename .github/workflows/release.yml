@@ -60,17 +60,7 @@ jobs:
           name: extension
           path: extension/dist/
 
-      - name: Upload extension source artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-src
-          path: |
-            extension/
-            !extension/node_modules/
-            !extension/dist/
-            !extension/package-lock.json
-
-  build-linux:
+  build-deb:
     needs: [check-version, build-extension]
     if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
@@ -92,13 +82,77 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev fakeroot
-          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/build.sh
+          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/debian/build.sh
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
           path: aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+
+  build-appimage:
+    needs: [check-version, build-extension]
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
+
+      - name: Build AppImage
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file libfuse2 desktop-file-utils
+          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/appimage/build.sh
+
+      - name: List AppImage output
+        run: ls -la build/*.AppImage
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: build/Aurora-Browser-*.AppImage
+
+  build-rpm:
+    needs: [check-version, build-extension]
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
+
+      - name: Install rpmbuild
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: Build RPM
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/redhat/build.sh
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          path: build/aurora-browser-*.rpm
 
   build-windows:
     needs: [check-version, build-extension]
@@ -162,21 +216,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build .deb package
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dpkg-dev fakeroot
-          bash ./linux/build.sh
-          ls -la *.deb
-
       - name: Upload Arch PKGBUILD
         uses: actions/upload-artifact@v4
         with:
           name: arch-pkgbuild
           path: linux/arch/PKGBUILD
 
+  build-macos:
+    needs: [check-version, build-extension]
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
+
+      - name: Build macOS BETA app + dmg
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }} bash ./macos/build.sh
+
+      - name: List macOS output
+        run: ls -la build/macos build/*.dmg
+
+      - name: Upload macOS BETA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            build/macos/
+            build/Aurora-Browser-*.dmg
+
   create-release:
-    needs: [check-version, build-linux, build-windows, build-arch]
+    needs: [check-version, build-deb, build-appimage, build-rpm, build-windows, build-arch, build-macos]
     if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -186,6 +266,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: linux-deb
+
+      - name: Download AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage
+
+      - name: Download RPM
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-rpm
 
       - name: Download Windows zip
         uses: actions/download-artifact@v4
@@ -197,8 +287,16 @@ jobs:
         with:
           name: arch-pkgbuild
 
+      - name: Download macOS
+        uses: actions/download-artifact@v4
+        with:
+          name: macos
+
       - name: Rename PKGBUILD
         run: mv PKGBUILD aurora-browser-PKGBUILD
+
+      - name: List release assets
+        run: ls -la
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -210,18 +308,41 @@ jobs:
 
             ${{ github.event.head_commit.message }}
 
+            ### Downloads
+
+            **Linux:**
+            - Ubuntu/Debian/Mint: `aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
+            - Fedora/RHEL/CentOS: `aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm`
+            - Arch/Manjaro: `aurora-browser-PKGBUILD`
+            - Universal: `Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage`
+
+            **Windows:**
+            - `aurora-browser-${{ needs.check-version.outputs.version }}-win.zip`
+
+            **macOS (BETA):**
+            - `Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg`
+
+            ### Install
             **Ubuntu/Debian:**
             ```
             sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
             ```
 
-            **Arch Linux:** Build with makepkg using aurora-browser-PKGBUILD, or install via debtap.
+            **AppImage (any Linux):**
+            ```
+            chmod +x Aurora-Browser-*.AppImage && ./Aurora-Browser-*.AppImage
+            ```
 
             **Windows:** Extract zip, run `update.ps1`, launch `aurora-browser.exe`
+
+            **macOS BETA:** Open DMG, drag Aurora Browser to Applications
           files: |
             aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+            Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage
+            aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm
             aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
             aurora-browser-PKGBUILD
+            Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg
           draft: false
           prerelease: false
         env:

@@ -1,9 +1,9 @@
-# Aurora Browser for Ubuntu
+# Aurora Browser for Debian / Ubuntu
 
 ## Install
 
 ```bash
-sudo dpkg -i aurora-browser_2.0.0_amd64.deb
+sudo dpkg -i aurora-browser_2.0.1_amd64.deb
 sudo apt-get install -f
 ```
 
@@ -13,7 +13,7 @@ The browser engine is downloaded automatically on first launch.
 
 ```bash
 sudo apt install dpkg-dev fakeroot nodejs npm
-./build.sh deb
+VERSION=2.0.1 bash linux/debian/build.sh
 sudo dpkg -i aurora-browser_*.deb
 ```
 

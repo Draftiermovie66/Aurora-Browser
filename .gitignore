@@ -5,5 +5,8 @@ chrome-win.old/
 profile/
 build/
 *.deb
+*.rpm
+*.AppImage
+*.dmg
 node_modules/
 extension/dist/
