@@ -18,14 +18,13 @@ echo ""
 
 # ---- Build Linux .deb ----
 echo "--- Building Linux .deb ..."
-bash "$DIR/build.sh" deb
+bash "$DIR/linux/build.sh"
 
 # ---- Build Windows ZIP (if on Windows) ----
 WIN_ZIP="$DIR/aurora-browser-${TAG#v}-win.zip"
 if command -v powershell.exe &>/dev/null; then
   echo "--- Building Windows ZIP ..."
-  powershell.exe -File "$DIR/windows/build-windows.ps1" -version "${TAG#v}"
-  # The build puts it in build/, zip it
+  powershell.exe -File "$DIR/windows/build.ps1" -version "${TAG#v}"
   BUILD_DIR="$DIR/build/aurora-browser-${TAG#v}-win"
   if [ -d "$BUILD_DIR" ]; then
     (cd "$DIR/build" && zip -r "$WIN_ZIP" "aurora-browser-${TAG#v}-win")

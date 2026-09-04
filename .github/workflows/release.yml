@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      has_version: ${{ steps.check.outputs.has_version }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - name: Extract version from commit message
+        id: check
+        run: |
+          MSG=$(git log -1 --pretty=%s)
+          # Match patterns like V2.0, v2.0, V2.0.1, V10.3.2, etc.
+          if [[ "$MSG" =~ [Vv]([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            echo "has_version=true" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+            echo "### Detected version: v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "has_version=false" >> "$GITHUB_OUTPUT"
+            echo "### No version tag found in commit message" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  build-linux:
+    needs: check-version
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build .deb package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot
+          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/build.sh
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+
+  build-windows:
+    needs: check-version
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mono
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mono-complete
+
+      - name: Build Windows package
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          mkdir -p build/aurora-browser-${VERSION}-win
+
+          # Copy extension
+          cp -r extension/* build/aurora-browser-${VERSION}-win/extension/
+
+          # Copy update script
+          cp windows/update.ps1 build/aurora-browser-${VERSION}-win/
+
+          # Copy icon
+          cp aurora.png build/aurora-browser-${VERSION}-win/
+
+          # Create config
+          cat > build/aurora-browser-${VERSION}-win/update.conf << EOF
+          REPO="Draftiermovie66/Aurora-Browser"
+          EOF
+
+          # Create version file
+          echo "CHROMIUM_VERSION=0" > build/aurora-browser-${VERSION}-win/version.txt
+
+          # Create profile placeholder
+          mkdir -p build/aurora-browser-${VERSION}-win/profile
+
+          # Compile the .exe launcher with Mono (csc)
+          mcs -out:build/aurora-browser-${VERSION}-win/aurora-browser.exe \
+            -target:winexe \
+            -r:System.dll \
+            windows/src/AuroraBrowser.cs
+
+          echo "Compiled aurora-browser.exe with Mono"
+
+      - name: Create Windows zip
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          cd build
+          zip -r "../aurora-browser-${VERSION}-win.zip" "aurora-browser-${VERSION}-win"
+
+      - name: Upload Windows zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: aurora-browser_${{ needs.check-version.outputs.version }}-win.zip
+
+  create-release:
+    needs: [check-version, build-linux, build-windows]
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download .deb
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-deb
+
+      - name: Download Windows zip
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-zip
+
+      - name: List artifacts
+        run: ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-version.outputs.tag }}
+          name: Aurora Browser ${{ needs.check-version.outputs.tag }}
+          body: |
+            ## Aurora Browser ${{ needs.check-version.outputs.tag }}
+
+            ### What's Changed
+            ${{ github.event.head_commit.message }}
+
+            ### Downloads
+            - **Linux:** `aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
+            - **Windows:** `aurora-browser-${{ needs.check-version.outputs.version }}-win.zip`
+
+            ### Install
+            **Linux:**
+            ```bash
+            sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+            ```
+
+            **Windows:**
+            1. Extract the zip
+            2. Run `update.ps1` to download Chromium
+            3. Launch `aurora-browser.exe`
+          files: |
+            aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+            aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

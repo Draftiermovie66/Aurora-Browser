@@ -5,7 +5,6 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$DIR/update.conf"
 VERSION_FILE="$DIR/version.txt"
 
-# Default repo — change this or create update.conf with REPO="your/repo"
 REPO="USER/Aurora-Browser"
 [ -f "$CONFIG" ] && source "$CONFIG"
 
@@ -28,7 +27,6 @@ CURRENT=""
 DOWNLOAD_URL=""
 LATEST_TAG=""
 
-# Try GitHub release first
 log "Checking github.com/$REPO for updates ..."
 GITHUB_TAG=$(curl -sf "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
   | grep '"tag_name"' | cut -d'"' -f4) || GITHUB_TAG=""
@@ -42,7 +40,6 @@ if [ -n "$GITHUB_TAG" ]; then
     | grep '"browser_download_url"' | grep -i 'chrome-linux' | cut -d'"' -f4)
 fi
 
-# Fallback to Chromium snapshot
 if [ -z "$DOWNLOAD_URL" ]; then
   log "No GitHub release asset. Falling back to latest Chromium snapshot..."
   SNAPSHOT_REV=$(curl -sf "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2FLAST_CHANGE?alt=media") || {
