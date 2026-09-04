@@ -41,9 +41,9 @@ if [ -n "$GITHUB_TAG" ]; then
 fi
 
 if [ -z "$DOWNLOAD_URL" ]; then
-  log "No GitHub release asset. Falling back to latest Chromium snapshot..."
+  log "No GitHub release asset. Falling back to latest Aurora engine snapshot..."
   SNAPSHOT_REV=$(curl -sf "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2FLAST_CHANGE?alt=media") || {
-    log "Failed to fetch Chromium snapshot revision."
+    log "Failed to fetch Aurora engine snapshot revision."
     exit 1
   }
   [ "$SNAPSHOT_REV" = "$CURRENT" ] && { log "Already up to date."; exit 0; }

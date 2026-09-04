@@ -1,6 +1,6 @@
 # Aurora Browser
 
-A custom Chromium-based browser with a self-contained profile, auto-update, and a polished new tab page.
+A custom Aurora-based browser with a self-contained profile, auto-update, and a polished new tab page.
 
 ## Project Structure
 
@@ -10,9 +10,9 @@ Aurora-Browser/
 ├── linux/                 # Linux-specific build, launch, and update scripts
 │   ├── build.sh           # Builds the .deb package
 │   ├── launch.sh          # Linux launcher script
-│   ├── update.sh          # Chromium update script
+│   ├── update.sh          # Engine update script
 │   ├── update.conf        # Update configuration
-│   └── setup-sandbox.sh   # Chrome sandbox permissions
+│   └── setup-sandbox.sh   # Sandbox permissions
 ├── windows/               # Windows-specific build, launch, and update scripts
 │   ├── build.ps1          # Builds the Windows package
 │   ├── launch.c           # C# source for the .exe launcher
@@ -42,7 +42,7 @@ All cookies, history, and extensions are stored in `/opt/aurora-browser/profile/
 ## Install (Windows)
 
 1. Extract the release zip
-2. Run `update.ps1` in PowerShell to download Chromium
+2. Run `update.ps1` in PowerShell to download the Aurora engine
 3. Launch with `aurora-browser.exe`
 
 ## Updating
@@ -59,7 +59,7 @@ sudo /opt/aurora-browser/update.sh
 .\update.ps1
 ```
 
-Updates are pulled from [GitHub releases](https://github.com/Draftiermovie66/Aurora-Browser/releases) or fall back to the latest Chromium snapshot.
+Updates are pulled from [GitHub releases](https://github.com/Draftiermovie66/Aurora-Browser/releases) or fall back to the latest engine snapshot.
 
 ## Build from Source
 

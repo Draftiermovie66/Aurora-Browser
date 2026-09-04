@@ -3,7 +3,13 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 
-VERSION="${VERSION:-1.1.1}"
+VERSION="${VERSION:-2.0.0}"
+
+# Build React extension if node_modules exists
+if [ -d "$ROOT/extension/node_modules" ]; then
+  echo "==> Building React extension ..."
+  (cd "$ROOT/extension" && npm run build)
+fi
 
 echo "==> Building .deb package (version $VERSION) ..."
 PKG="$ROOT/aurora-browser_${VERSION}_amd64.deb"
@@ -25,8 +31,8 @@ Priority: optional
 Architecture: amd64
 Depends: curl, unzip, ca-certificates
 Maintainer: Aurora Browser <draftiermovie66@users.noreply.github.com>
-Description: Aurora Browser - Chromium-based browser with auto-update
- Automatically downloads and updates the latest Chromium snapshot.
+Description: Aurora Browser - Aurora-based browser with auto-update
+ Automatically downloads and updates the latest Aurora engine snapshot.
  Self-contained profile, custom new tab page, and auto-update from GitHub.
 CTRL
 
@@ -68,7 +74,7 @@ cp -r "$ROOT/extension/"* "$TMP/opt/aurora-browser/extension/"
 cat > "$TMP/usr/share/applications/aurora-browser.desktop" <<'DESK'
 [Desktop Entry]
 Name=Aurora Browser
-Comment=Chromium-based browser with auto-update
+Comment=Aurora-based browser with auto-update
 Exec=/opt/aurora-browser/launch-aurora.sh %U
 Icon=aurora-browser
 Terminal=false

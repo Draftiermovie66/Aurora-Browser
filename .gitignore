@@ -5,3 +5,5 @@ chrome-win.old/
 profile/
 build/
 *.deb
+node_modules/
+extension/dist/

@@ -36,12 +36,57 @@ jobs:
             echo "### No version tag found in commit message" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  build-linux:
+  build-extension:
     needs: check-version
     if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: extension/dist/
+
+      - name: Upload extension source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-src
+          path: |
+            extension/
+            !extension/node_modules/
+            !extension/dist/
+            !extension/package-lock.json
+
+  build-linux:
+    needs: [check-version, build-extension]
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
 
       - name: Build .deb package
         run: |
@@ -56,11 +101,22 @@ jobs:
           path: aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
 
   build-windows:
-    needs: check-version
+    needs: [check-version, build-extension]
     if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build React extension
+        working-directory: extension
+        run: |
+          npm install
+          npm run build
 
       - name: Install Mono
         run: |
@@ -73,7 +129,8 @@ jobs:
           mkdir -p build/aurora-browser-${VERSION}-win/extension
           mkdir -p build/aurora-browser-${VERSION}-win/profile
 
-          cp -r extension/* build/aurora-browser-${VERSION}-win/extension/
+          cp -r extension/dist build/aurora-browser-${VERSION}-win/extension/dist
+          cp extension/aurora.png build/aurora-browser-${VERSION}-win/extension/aurora.png
           cp windows/update.ps1 build/aurora-browser-${VERSION}-win/
           cp aurora.png build/aurora-browser-${VERSION}-win/
           echo 'REPO="Draftiermovie66/Aurora-Browser"' > build/aurora-browser-${VERSION}-win/update.conf
@@ -98,8 +155,28 @@ jobs:
           name: windows-zip
           path: aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
 
+  build-arch:
+    needs: check-version
+    if: needs.check-version.outputs.has_version == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build .deb package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot
+          bash ./linux/build.sh
+          ls -la *.deb
+
+      - name: Upload Arch PKGBUILD
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-pkgbuild
+          path: linux/arch/PKGBUILD
+
   create-release:
-    needs: [check-version, build-linux, build-windows]
+    needs: [check-version, build-linux, build-windows, build-arch]
     if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -115,6 +192,14 @@ jobs:
         with:
           name: windows-zip
 
+      - name: Download Arch PKGBUILD
+        uses: actions/download-artifact@v4
+        with:
+          name: arch-pkgbuild
+
+      - name: Rename PKGBUILD
+        run: mv PKGBUILD aurora-browser-PKGBUILD
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -125,12 +210,18 @@ jobs:
 
             ${{ github.event.head_commit.message }}
 
-            **Linux:** `sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
+            **Ubuntu/Debian:**
+            ```
+            sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
+            ```
+
+            **Arch Linux:** Build with makepkg using aurora-browser-PKGBUILD, or install via debtap.
 
             **Windows:** Extract zip, run `update.ps1`, launch `aurora-browser.exe`
           files: |
             aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
             aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
+            aurora-browser-PKGBUILD
           draft: false
           prerelease: false
         env:

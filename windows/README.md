@@ -2,15 +2,15 @@
 
 ## Quick Start
 
-1. **Download Chromium** — Run `update.ps1` in PowerShell to automatically download the latest Chromium snapshot.
+1. **Download Engine** — Run `update.ps1` in PowerShell to automatically download the latest Aurora engine snapshot.
 
 2. **Launch** — Double-click `aurora-browser.exe` to start Aurora Browser.
 
-3. **Auto-update** — `update.ps1` checks GitHub releases (and falls back to Chromium snapshots). Run it manually or via a scheduled task.
+3. **Auto-update** — `update.ps1` checks GitHub releases (and falls back to engine snapshots). Run it manually or via a scheduled task.
 
 ## Manual Setup
 
-1. Download `chrome-win.zip` from [Chromium snapshots](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html?prefix=Win_x64/)
+1. Download `chrome-win.zip` from [engine snapshots](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html?prefix=Win_x64/)
 2. Extract `chrome-win/` into the same directory as `aurora-browser.exe`
 3. Run `aurora-browser.exe`
 
@@ -18,7 +18,7 @@
 
 ```
 aurora-browser/
-  chrome-win/           # Chromium engine (downloaded via update.ps1)
+  chrome-win/           # Engine (downloaded via update.ps1)
   chrome-win.old/       # Backup from last update
   aurora-browser.exe    # Launcher (compiled from C# source)
   extension/            # Custom new tab page
