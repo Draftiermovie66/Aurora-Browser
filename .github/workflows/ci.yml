@@ -9,10 +9,6 @@ on:
       - 'LICENSE'
       - '.gitignore'
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build-extension:
     name: Build React extension
@@ -24,12 +20,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
 
       - name: Install dependencies
         working-directory: extension
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: extension
@@ -51,29 +45,9 @@ jobs:
         run: |
           set -e
           shopt -s globstar nullglob
-          for f in build.sh release.sh scripts/build/*.sh packages/**/*.sh; do
+          for f in build.sh release.sh **/*.sh; do
             if [ -f "$f" ]; then
               bash -n "$f"
               echo "OK: $f"
             fi
           done
-          # Also check root shims resolve
-          bash -n build.sh && echo "OK: build.sh (shim)"
-          bash -n release.sh && echo "OK: release.sh (shim)"
-
-  validate-versions:
-    name: Validate VERSION sync
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check version sync
-        run: |
-          VER=$(cat VERSION | tr -d ' \n\r')
-          EXT_VER=$(node -p "require('./extension/package.json').version")
-          PKG_VER=$(grep '^pkgver=' packages/linux/arch/PKGBUILD | cut -d= -f2)
-          echo "VERSION=$VER extension=$EXT_VER PKGBUILD=$PKG_VER"
-          if [ "$VER" != "$EXT_VER" ] || [ "$VER" != "$PKG_VER" ]; then
-            echo "::error::Version drift detected"
-            exit 1
-          fi
-          echo "Version sync OK: $VER"

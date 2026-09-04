@@ -3,7 +3,7 @@ chrome-linux.old/
 chrome-win/
 chrome-win.old/
 profile/
-/build/
+build/
 *.deb
 *.rpm
 *.AppImage
