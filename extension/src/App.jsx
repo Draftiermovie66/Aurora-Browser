@@ -54,20 +54,93 @@ function getReleaseNotes() {
     });
 }
 
+const SEARCH_STORAGE = 'aurora_last_search';
+const FIRST_RUN_STORAGE = 'aurora_first_run';
+const PROFILE_STORAGE = 'aurora_profile_key';
+
+function loadLastSearch() {
+  try { return localStorage.getItem(SEARCH_STORAGE) || ''; } catch (e) { return ''; }
+}
+function saveLastSearch(value) {
+  try { localStorage.setItem(SEARCH_STORAGE, value); } catch (e) {}
+}
+
+// Persist a stable profile key across app version bumps so the user's
+// session (theme, shortcuts, last search) is carried forward regardless of
+// which Aurora version renders this page.
+function ensureProfileKey() {
+  try {
+    if (!localStorage.getItem(PROFILE_STORAGE)) {
+      localStorage.setItem(PROFILE_STORAGE, 'default-' + Date.now().toString(36));
+    }
+  } catch (e) {}
+}
+
 export default function App() {
   const [theme, setTheme] = useState(getSavedTheme());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [release, setRelease] = useState(null);
   const [shortcuts, setShortcuts] = useState(() => loadShortcuts());
+  const [query, setQuery] = useState(loadLastSearch);
+  const searchRef = React.useRef(null);
 
   useEffect(() => {
     applyTheme(theme);
+    ensureProfileKey();
   }, [theme]);
 
   useEffect(() => {
     getReleaseNotes().then(setRelease).catch(() => {});
   }, []);
+
+  // Global keyboard shortcuts.
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      // Ctrl/Cmd+E or "?" opens the shortcut editor
+      if ((mod && e.key.toLowerCase() === 'e') || (!mod && e.key === '?')) {
+        e.preventDefault();
+        setEditorOpen(true);
+      }
+      // "Escape" closes open modals
+      if (e.key === 'Escape') {
+        setPickerOpen(false);
+        setEditorOpen(false);
+      }
+      // "/" focuses the search box
+      if (!mod && e.key === '/' && document.activeElement !== searchRef.current) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Persist the in-progress search so the session resumes after navigating away.
+  useEffect(() => {
+    const timer = setTimeout(() => saveLastSearch(query), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Mark first visit (used to show a small "Press ? for shortcuts" hint).
+  const [isFirstRun] = useState(() => {
+    let first = false;
+    try {
+      if (!localStorage.getItem(FIRST_RUN_STORAGE)) {
+        first = true;
+        localStorage.setItem(FIRST_RUN_STORAGE, '1');
+      }
+    } catch (e) {}
+    return first;
+  });
+
+  const handleSearchSubmit = () => {
+    saveLastSearch('');
+    setQuery('');
+    searchRef.current?.blur();
+  };
 
   const handleThemeChange = (t) => {
     setTheme(t);
@@ -114,12 +187,21 @@ export default function App() {
           action="https://www.google.com/search"
           method="GET"
           target="_top"
+          onSubmit={handleSearchSubmit}
           variants={fadeUp}
           initial="hidden"
           animate="show"
           custom={1}
         >
-          <input type="text" name="q" placeholder="Search the web" autoFocus />
+          <input
+            type="text"
+            name="q"
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the web"
+            autoFocus
+          />
           <SearchIcon />
         </motion.form>
 
@@ -227,6 +309,9 @@ export default function App() {
         animate="show"
         custom={4}
       >
+        {isFirstRun && (
+          <span className="kbd-hint">Tip: press <kbd>?</kbd> to edit shortcuts, <kbd>/</kbd> to search</span>
+        )}
         <a href="https://github.com/Draftiermovie66/Aurora-Browser/releases" target="_blank">Releases</a>
         <a href="https://github.com/Draftiermovie66/Aurora-Browser/issues" target="_blank">Report Issue</a>
         <a href="https://github.com/Draftiermovie66/Aurora-Browser" target="_blank">Source</a>

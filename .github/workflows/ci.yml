@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+
+jobs:
+  build-extension:
+    name: Build React extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: extension
+        run: npm install
+
+      - name: Build
+        working-directory: extension
+        run: npm run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-dist
+          path: extension/dist/
+
+  lint-shell-scripts:
+    name: Check bash scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          set -e
+          shopt -s globstar nullglob
+          for f in build.sh release.sh **/*.sh; do
+            if [ -f "$f" ]; then
+              bash -n "$f"
+              echo "OK: $f"
+            fi
+          done

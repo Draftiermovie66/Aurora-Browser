@@ -1,0 +1,37 @@
+name-template: 'Aurora Browser v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+version-resolver:
+  major:
+    labels: ['major']
+  minor:
+    labels: ['minor']
+  patch:
+    labels: ['bug', 'fix']
+  default: minor
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+      - 'dependencies'
+      - 'refactor'
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+      - 'tests'
+change-template: '- $TITLE (@$AUTHOR)'
+no-changes-template: '- No changes'
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/Draftiermovie66/Aurora-Browser/compare/$PREVIOUS_TAG...$RESOLVED_TAG

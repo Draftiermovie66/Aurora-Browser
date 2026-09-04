@@ -108,11 +108,47 @@ echo 'REPO="Draftiermovie66/Aurora-Browser"' > "$APP/Contents/Resources/update.c
 cp "$DIR/update.sh" "$APP/Contents/Resources/update.sh"
 chmod +x "$APP/Contents/Resources/update.sh"
 
-# Create icon from aurora.png (simple: copy; real .icns requires iconutil on macOS)
-cp "$ROOT/aurora.png" "$APP/Contents/Resources/AppIcon.png"
+# Generate a real .icns from aurora.png using iconutil (macOS only).
+ICONSET="$TMP/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 64 128 256 512; do
+  s2=$((size * 2))
+  sfile="$ICONSET/icon_${size}x${size}.png"
+  s2file="$ICONSET/icon_${size}x${size}@2x.png"
+  if command -v sips >/dev/null 2>&1; then
+    sips -z "$size" "$size" "$ROOT/aurora.png" --out "$sfile" >/dev/null 2>&1
+    [ "$size" -le 256 ] && sips -z "$s2" "$s2" "$ROOT/aurora.png" --out "$s2file" >/dev/null 2>&1
+  else
+    # Fallback: just drop the source PNG (imperfect, but keeps the build going)
+    cp "$ROOT/aurora.png" "$sfile"
+  fi
+done
+if command -v iconutil >/dev/null 2>&1; then
+  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+else
+  cp "$ROOT/aurora.png" "$APP/Contents/Resources/AppIcon.png"
+fi
 
-# Create a launch command symlink in /usr/local/bin equivalent
 echo "==> App bundle created: $APP"
+
+# ---- Code signing ----
+# CODESIGN_IDENTITY: set to a Developer ID certificate name ("Developer ID
+# Application: ...") for full signing+notarization. If unset, ad-hoc sign
+# ("-") which removes the "damaged" prompt on Apple Silicon / quarantine.
+codesign_app() {
+  local identity="${CODESIGN_IDENTITY:--}"
+  echo "==> Code signing with identity: $identity"
+  # Remove quarantine attribute the browser engine may carry after download.
+  xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+  codesign --force --deep --sign "$identity" \
+    --options runtime \
+    --entitlements "$DIR/entitlements.plist" \
+    "$APP" 2>/dev/null \
+  || codesign --force --deep --sign "$identity" "$APP"
+  codesign --verify --deep --strict "$APP" 2>&1 | sed 's/^/    /'
+}
+
+codesign_app
 
 # Create .dmg (requires hdiutil, only available on macOS)
 if command -v hdiutil >/dev/null 2>&1; then
@@ -125,6 +161,34 @@ if command -v hdiutil >/dev/null 2>&1; then
   hdiutil create -volname "Aurora Browser" \
     -srcfolder "$STAGE" -ov -format UDZO "$DMG"
   echo "==> DMG: $DMG"
+
+  # ---- Notarization (only when credentials are provided) ----
+  # Use Xcode notarytool for macOS 12+/Xcode 13+. Requires:
+  #   AC_USERNAME   Apple ID
+  #   AC_PASSWORD   app-specific password
+  #   AC_TEAM_ID    Apple Developer team ID
+  # Optionally override with NOTARY_PROFILE (-p profile).
+  if [ -n "${AC_USERNAME:-}" ] || [ -n "${NOTARY_PROFILE:-}" ]; then
+    echo "==> Submitting DMG for notarization ..."
+    NOTARY_ARGS=(notarytool submit "$DMG" --wait --output-format json)
+    if [ -n "${NOTARY_PROFILE:-}" ]; then
+      NOTARY_ARGS=("${NOTARY_ARGS[@]}" --keychain-profile "$NOTARY_PROFILE")
+    else
+      NOTARY_ARGS=("${NOTARY_ARGS[@]}" \
+        --apple-id "$AC_USERNAME" \
+        --password "$AC_PASSWORD" \
+        --team-id "${AC_TEAM_ID:-}")
+    fi
+    if xcrun "${NOTARY_ARGS[@]}"; then
+      echo "==> Notarization approved; stapling ticket ..."
+      xcrun stapler staple "$DMG"
+      xcrun stapler validate "$DMG"
+    else
+      echo "!! Notarization failed — DMG remains unsigned/unstapled."
+    fi
+  else
+    echo "==> Skipping notarization (set AC_USERNAME/AC_PASSWORD/TEAM_ID or NOTARY_PROFILE)."
+  fi
 else
   echo "==> hdiutil not available (must run on macOS). Skipping .dmg creation."
   echo "    The .app bundle is ready at: $APP"

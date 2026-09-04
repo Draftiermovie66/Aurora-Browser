@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a problem with Aurora Browser
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform are you on?
+      multiple: false
+      options:
+        - Ubuntu / Debian (.deb)
+        - Fedora / RHEL (.rpm)
+        - Arch / Manjaro (PKGBUILD)
+        - AppImage (universal Linux)
+        - Windows (zip)
+        - macOS BETA (.dmg)
+        - Source build
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Aurora version (e.g. v2.0.2)
+      placeholder: "v2.0.2"
+    validations:
+      required: true
+  - type: textarea
+    id: describe
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "What happened? What did you expect instead?"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Steps to trigger the bug.
+      placeholder: |
+        1. Open Aurora Browser
+        2. ...
+        3. See error
+    validations:
+      required: false
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshots / logs
+      description: If applicable, add screenshots or the content of a terminal log / error output.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: "I searched for an existing issue with the same problem"
+          required: true

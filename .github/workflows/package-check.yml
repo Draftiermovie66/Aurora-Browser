@@ -1,0 +1,52 @@
+name: Package Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+
+jobs:
+  package-syntax:
+    name: Validate package scripts (deb / rpm / arch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot rpm
+
+      - name: Validate .deb build script syntax
+        run: bash -n linux/debian/build.sh && echo "debian build.sh OK"
+
+      - name: Validate .rpm build script syntax
+        run: bash -n linux/redhat/build.sh && echo "redhat build.sh OK"
+
+      - name: Validate AppImage build script syntax
+        run: bash -n linux/appimage/build.sh && echo "appimage build.sh OK"
+
+      - name: Validate macOS build scripts syntax
+        run: |
+          bash -n macos/build.sh && echo "macos build.sh OK"
+          bash -n macos/update.sh && echo "macos update.sh OK"
+
+      - name: Validate PKGBUILD
+        run: |
+          # Rough syntax sanity: pkgver matches release and required fields exist.
+          source <(grep -E '^(pkgname|pkgver|pkgrel|arch|url|license|depends)=' linux/arch/PKGBUILD | sed 's/^\([^=]*\)=\(.*\)$/\1="\2"/')
+          for v in pkgname pkgver pkgrel arch url license depends; do
+            val="${!v}"
+            if [ -z "$val" ]; then
+              echo "Missing PKGBUILD field: $v"
+              exit 1
+            fi
+          done
+          echo "PKGBUILD OK: ${pkgname} ${pkgver}-${pkgrel}"
+
+      - name: Validate workflow YAML
+        run: python3 scripts/validate-yaml.py

@@ -2,8 +2,11 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# INSTALL_DIR lets wrappers (e.g. AppImage) redirect engine downloads to a
+# user-writable dir instead of the (read-only) bundle directory.
+INSTALL_DIR="${INSTALL_DIR:-$DIR}"
 CONFIG="$DIR/update.conf"
-VERSION_FILE="$DIR/version.txt"
+VERSION_FILE="$INSTALL_DIR/version.txt"
 
 REPO="USER/Aurora-Browser"
 [ -f "$CONFIG" ] && source "$CONFIG"
@@ -66,13 +69,13 @@ if [ ! -d "$TMPDIR/extracted/chrome-linux" ]; then
 fi
 
 log "Applying update ..."
-rm -rf "$DIR/chrome-linux.old"
-[ -d "$DIR/chrome-linux" ] && mv "$DIR/chrome-linux" "$DIR/chrome-linux.old"
-mv "$TMPDIR/extracted/chrome-linux" "$DIR/chrome-linux"
-chmod +x "$DIR/chrome-linux/chrome"
+rm -rf "$INSTALL_DIR/chrome-linux.old"
+[ -d "$INSTALL_DIR/chrome-linux" ] && mv "$INSTALL_DIR/chrome-linux" "$INSTALL_DIR/chrome-linux.old"
+mv "$TMPDIR/extracted/chrome-linux" "$INSTALL_DIR/chrome-linux"
+chmod +x "$INSTALL_DIR/chrome-linux/chrome"
 
 echo "CHROMIUM_VERSION=$LATEST_TAG" > "$VERSION_FILE"
-CHROME_VER=$("$DIR/chrome-linux/chrome" --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+\.\d+' || echo "")
+CHROME_VER=$("$INSTALL_DIR/chrome-linux/chrome" --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+\.\d+' || echo "")
 [ -n "$CHROME_VER" ] && echo "CHROME_VERSION=$CHROME_VER" >> "$VERSION_FILE"
 
 log "Update complete: $LATEST_TAG"

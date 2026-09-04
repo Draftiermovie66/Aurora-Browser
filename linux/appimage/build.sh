@@ -4,12 +4,13 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
 COMMON="$DIR/../common"
 
-VERSION="${VERSION:-2.0.1}"
+VERSION="${VERSION:-2.0.2}"
 
 echo "==> Building Aurora Browser AppImage (version $VERSION) ..."
 APPDIR=$(mktemp -d)/AppDir
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share/applications" \
-         "$APPDIR/usr/share/icons/hicolor/48x48/apps"
+         "$APPDIR/usr/share/icons/hicolor/48x48/apps" \
+         "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
 # Build React extension
 if [ -d "$ROOT/extension/node_modules" ]; then
@@ -34,8 +35,33 @@ mkdir -p "$APPDIR/opt/aurora-browser/extension"
 cp -r "$ROOT/extension/"* "$APPDIR/opt/aurora-browser/extension/"
 
 # Icon
-cp "$ROOT/aurora.png" "$APPDIR/usr/share/icons/hicolor/48x48/apps/aurora-browser.png"
-cp "$ROOT/aurora.png" "$APPDIR/aurora-browser.png"
+# linuxdeploy requires icons at specific resolutions (not 800x800).
+# Generate a valid 256x256 copy for bundling.
+ICON_SRC="$ROOT/aurora.png"
+ICON_256="$ROOT/build/aurora-browser-256.png"
+mkdir -p "$ROOT/build"
+resize_icon() {
+  if command -v convert >/dev/null 2>&1; then
+    convert "$ICON_SRC" -resize 256x256 "$ICON_256"
+  elif command -v magick >/dev/null 2>&1; then
+    magick "$ICON_SRC" -resize 256x256 "$ICON_256"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "$ICON_SRC" "$ICON_256" <<'PY'
+import sys
+try:
+    from PIL import Image
+except ImportError:
+    sys.exit(1)
+src, dst = sys.argv[1], sys.argv[2]
+im = Image.open(src).convert("RGBA").resize((256, 256), Image.LANCZOS)
+im.save(dst, "PNG")
+PY
+  fi
+  [ -f "$ICON_256" ] || cp "$ICON_SRC" "$ICON_256"
+}
+resize_icon
+cp "$ICON_256" "$APPDIR/usr/share/icons/hicolor/256x256/apps/aurora-browser.png"
+cp "$ICON_256" "$APPDIR/aurora-browser.png"
 
 # .desktop
 cat > "$APPDIR/usr/share/applications/aurora-browser.desktop" <<'DESK'
@@ -52,8 +78,43 @@ StartupWMClass=Aurora-Browser
 DESK
 cp "$APPDIR/usr/share/applications/aurora-browser.desktop" "$APPDIR/aurora-browser.desktop"
 
-# Launcher symlink in AppDir
-ln -sf /opt/aurora-browser/launch-aurora.sh "$APPDIR/usr/bin/aurora-browser"
+# Launcher wrapper in AppDir: AppImages mount read-only, so the engine,
+# profile, and extension are staged into a user-writable data dir. This
+# wrapper doubles as the .desktop Exec=aurora-browser entry.
+cat > "$APPDIR/usr/bin/aurora-browser" <<'WRAP'
+#!/bin/bash
+set -euo pipefail
+APPDIR="${APPDIR:-$(cd "$(dirname "$(readlink -f "$0")")/../../" && pwd)}"
+export APPDIR
+
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/aurora-browser"
+mkdir -p "$DATA_DIR"
+if [ ! -d "$DATA_DIR/extension" ]; then
+  cp -r "$APPDIR/opt/aurora-browser/extension" "$DATA_DIR/extension"
+fi
+
+LAST="$DATA_DIR/.last-update-check"
+if [ ! -f "$LAST" ] || [ "$(find "$LAST" -mtime +0)" ]; then
+  touch "$LAST"
+  mkdir -p "$DATA_DIR/profile"
+  INSTALL_DIR="$DATA_DIR" \
+    "$APPDIR/opt/aurora-browser/update.sh" --quiet >/dev/null 2>&1 &
+fi
+
+ENGINE="$DATA_DIR/chrome-linux/chrome"
+[ -x "$ENGINE" ] || INSTALL_DIR="$DATA_DIR" "$APPDIR/opt/aurora-browser/update.sh"
+
+FLAGS=(
+  --user-data-dir="$DATA_DIR/profile"
+  --no-first-run
+  --disable-features=TranslateUI
+  --disable-setuid-sandbox
+  --class=Aurora-Browser
+  --load-extension="$DATA_DIR/extension"
+)
+exec "$ENGINE" "${FLAGS[@]}" "$@"
+WRAP
+chmod +x "$APPDIR/usr/bin/aurora-browser"
 
 # Extract linuxdeploy to build the AppImage
 LINUXDEPLOY="$ROOT/build/linuxdeploy-x86_64.AppImage"
@@ -67,18 +128,28 @@ fi
 
 OUT="$ROOT/build/Aurora-Browser-${VERSION}-x86_64.AppImage"
 
+# appimagetool writes the AppImage into the current working directory,
+# so run linuxdeploy from a scratch output dir that we control.
+OUTTMP=$(mktemp -d)
+
 echo "==> Bundling AppImage ..."
 export APPIMAGE_EXTRACT_AND_RUN=1
-"$LINUXDEPLOY" \
-  --appdir "$APPDIR" \
-  --output appimage \
-  --desktop-file "$APPDIR/usr/share/applications/aurora-browser.desktop" \
-  --icon-file "$ROOT/aurora.png"
+export ARCH="${ARCH:-x86_64}"
+(
+  cd "$OUTTMP"
+  "$LINUXDEPLOY" \
+    --appdir "$APPDIR" \
+    --output appimage \
+    --desktop-file "$APPDIR/usr/share/applications/aurora-browser.desktop" \
+    --icon-file "$ICON_256"
+)
 
-# linuxdeploy outputs the .AppImage in $APPDIR by default
-if [ -f "$APPDIR/Aurora_Browser-*.AppImage" ] || ls "$APPDIR"/*.AppImage >/dev/null 2>&1; then
-  mv "$APPDIR"/*.AppImage "$OUT"
+PRODUCED=$(find "$OUTTMP" -maxdepth 1 -name "*.AppImage" | head -n1)
+if [ -z "$PRODUCED" ]; then
+  echo "ERROR: appimagetool did not produce an AppImage under $OUTTMP"
+  exit 1
 fi
+mv "$PRODUCED" "$OUT"
 
 echo "==> Built: $OUT"
-echo "    Run with: chmod +x $OUT && ./$OUT"
+echo "    Run with: chmod +x $OUT && ./$(basename "$OUT")"

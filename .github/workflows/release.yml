@@ -111,7 +111,7 @@ jobs:
       - name: Build AppImage
         run: |
           sudo apt-get update
-          sudo apt-get install -y file libfuse2 desktop-file-utils
+          sudo apt-get install -y file libfuse2 desktop-file-utils imagemagick
           VERSION=${{ needs.check-version.outputs.version }} bash ./linux/appimage/build.sh
 
       - name: List AppImage output

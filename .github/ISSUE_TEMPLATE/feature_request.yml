@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest an idea for Aurora Browser
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea! Describe the feature and why it would help.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Aurora Browser is this for?
+      multiple: true
+      options:
+        - New tab page (React extension)
+        - Packaging / installers (deb, rpm, arch, appimage)
+        - Auto-update engine
+        - Windows launcher
+        - macOS BETA
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: A clear description of the problem or gap you're addressing.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe how you'd like the feature to work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Any workarounds or alternative approaches.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: "I searched for an existing request for this feature"
+          required: true
