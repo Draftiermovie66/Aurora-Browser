@@ -30,7 +30,7 @@ Aurora-Browser/
 | Fedora/RHEL/CentOS | `.rpm`        | `sudo dnf install aurora-browser_*.rpm`|
 | Arch/Manjaro       | PKGBUILD       | `cd linux/arch && makepkg -si`         |
 | Any Linux          | `.AppImage`    | `chmod +x *.AppImage && ./Aurora-*.AppImage` |
-| Windows            | zip            | extract, run `update.ps1`, launch `aurora-browser.exe` |
+| Windows            | `.exe`         | download `aurora-browser-*-win.exe`, run `update.ps1`, launch |
 | macOS (BETA)       | `.dmg`         | open DMG, drag to Applications         |
 
 See `linux/README.md` and `macos/README.md` for platform-specific details.
@@ -61,7 +61,8 @@ on macOS, and the install folder on Windows.
 
 ## Install (Windows)
 
-1. Extract the release zip
+1. Download the `aurora-browser-*-win.exe` launcher and keep it in a folder
+   alongside `update.ps1`, the `extension/` directory, and the `chrome-win/` engine
 2. Run `update.ps1` in PowerShell to download the engine
 3. Launch with `aurora-browser.exe`
 

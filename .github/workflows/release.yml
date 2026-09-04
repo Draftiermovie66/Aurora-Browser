@@ -197,17 +197,18 @@ jobs:
 
           echo "Compiled aurora-browser.exe"
 
-      - name: Create Windows zip
+      - name: Copy standalone Windows .exe
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          cd build
-          zip -r "../aurora-browser-${VERSION}-win.zip" "aurora-browser-${VERSION}-win"
+          cp build/aurora-browser-${VERSION}-win/aurora-browser.exe \
+             aurora-browser-${VERSION}-win.exe
+          ls -la aurora-browser-${VERSION}-win.exe
 
-      - name: Upload Windows zip artifact
+      - name: Upload Windows .exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-zip
-          path: aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
+          name: windows-exe
+          path: aurora-browser-${{ needs.check-version.outputs.version }}-win.exe
 
   build-arch:
     needs: check-version
@@ -277,10 +278,10 @@ jobs:
         with:
           name: linux-rpm
 
-      - name: Download Windows zip
+      - name: Download Windows .exe
         uses: actions/download-artifact@v4
         with:
-          name: windows-zip
+          name: windows-exe
 
       - name: Download Arch PKGBUILD
         uses: actions/download-artifact@v4
@@ -317,7 +318,7 @@ jobs:
             - Universal: `Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage`
 
             **Windows:**
-            - `aurora-browser-${{ needs.check-version.outputs.version }}-win.zip`
+            - `aurora-browser-${{ needs.check-version.outputs.version }}-win.exe`
 
             **macOS (BETA):**
             - `Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg`
@@ -333,14 +334,14 @@ jobs:
             chmod +x Aurora-Browser-*.AppImage && ./Aurora-Browser-*.AppImage
             ```
 
-            **Windows:** Extract zip, run `update.ps1`, launch `aurora-browser.exe`
+            **Windows:** Download the `.exe` (place it in a folder alongside `update.ps1`, the `extension/` dir, and a `chrome-win/` engine dir), launch `aurora-browser.exe`
 
             **macOS BETA:** Open DMG, drag Aurora Browser to Applications
           files: |
             aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
             Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage
             aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm
-            aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
+            aurora-browser-${{ needs.check-version.outputs.version }}-win.exe
             aurora-browser-PKGBUILD
             Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg
           draft: false

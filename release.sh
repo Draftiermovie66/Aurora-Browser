@@ -35,17 +35,17 @@ echo "--- Building macOS (BETA) ..."
 bash "$DIR/macos/build.sh"
 DMG="$DIR/build/Aurora-Browser-${V}-BETA.dmg"
 
-# ---- Build Windows ZIP (if on Windows) ----
-WIN_ZIP="$DIR/build/aurora-browser-${V}-win.zip"
+# ---- Build Windows .exe (if on Windows) ----
+WIN_EXE="$DIR/build/aurora-browser-${V}-win.exe"
 if command -v powershell.exe &>/dev/null; then
-  echo "--- Building Windows ZIP ..."
+  echo "--- Building Windows .exe ..."
   powershell.exe -File "$DIR/windows/build.ps1" -version "$V"
   BUILD_DIR="$DIR/build/aurora-browser-${V}-win"
-  if [ -d "$BUILD_DIR" ]; then
-    (cd "$DIR/build" && zip -r "$WIN_ZIP" "aurora-browser-${V}-win")
+  if [ -f "$BUILD_DIR/aurora-browser.exe" ]; then
+    cp "$BUILD_DIR/aurora-browser.exe" "$WIN_EXE"
   fi
 else
-  echo "  Skipping Windows ZIP (not on Windows)"
+  echo "  Skipping Windows .exe (not on Windows)"
 fi
 
 # ---- Create GitHub Release ----
@@ -53,7 +53,7 @@ ASSETS=("$DEB")
 [ -f "$APPIMAGE" ] && ASSETS+=("$APPIMAGE")
 [ -f "$RPM" ] && ASSETS+=("$RPM")
 [ -f "$DMG" ] && ASSETS+=("$DMG")
-[ -f "$WIN_ZIP" ] && ASSETS+=("$WIN_ZIP")
+[ -f "$WIN_EXE" ] && ASSETS+=("$WIN_EXE")
 
 if $PUSH; then
   echo "--- Creating GitHub release $TAG ..."

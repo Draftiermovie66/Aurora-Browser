@@ -48,5 +48,8 @@ jobs:
           done
           echo "PKGBUILD OK: ${pkgname} ${pkgver}-${pkgrel}"
 
+      - name: Smoke test update.sh asset lookup
+        run: bash scripts/smoke-update-check.sh
+
       - name: Validate workflow YAML
         run: python3 scripts/validate-yaml.py
