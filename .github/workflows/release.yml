@@ -16,11 +16,15 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       tag: ${{ steps.check.outputs.tag }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - name: Extract version from commit message
         id: check
         run: |
           MSG=$(git log -1 --pretty=%s)
-          # Match patterns like V2.0, v2.0, V2.0.1, V10.3.2, etc.
+          echo "Commit message: $MSG"
           if [[ "$MSG" =~ [Vv]([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
             VERSION="${BASH_REMATCH[1]}"
             echo "has_version=true" >> "$GITHUB_OUTPUT"
@@ -68,33 +72,19 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
           mkdir -p build/aurora-browser-${VERSION}-win
 
-          # Copy extension
           cp -r extension/* build/aurora-browser-${VERSION}-win/extension/
-
-          # Copy update script
           cp windows/update.ps1 build/aurora-browser-${VERSION}-win/
-
-          # Copy icon
           cp aurora.png build/aurora-browser-${VERSION}-win/
-
-          # Create config
-          cat > build/aurora-browser-${VERSION}-win/update.conf << EOF
-          REPO="Draftiermovie66/Aurora-Browser"
-          EOF
-
-          # Create version file
+          echo 'REPO="Draftiermovie66/Aurora-Browser"' > build/aurora-browser-${VERSION}-win/update.conf
           echo "CHROMIUM_VERSION=0" > build/aurora-browser-${VERSION}-win/version.txt
-
-          # Create profile placeholder
           mkdir -p build/aurora-browser-${VERSION}-win/profile
 
-          # Compile the .exe launcher with Mono (csc)
           mcs -out:build/aurora-browser-${VERSION}-win/aurora-browser.exe \
             -target:winexe \
             -r:System.dll \
             windows/src/AuroraBrowser.cs
 
-          echo "Compiled aurora-browser.exe with Mono"
+          echo "Compiled aurora-browser.exe"
 
       - name: Create Windows zip
         run: |
@@ -106,7 +96,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-zip
-          path: aurora-browser_${{ needs.check-version.outputs.version }}-win.zip
+          path: aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
 
   create-release:
     needs: [check-version, build-linux, build-windows]
@@ -125,9 +115,6 @@ jobs:
         with:
           name: windows-zip
 
-      - name: List artifacts
-        run: ls -la
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -136,23 +123,11 @@ jobs:
           body: |
             ## Aurora Browser ${{ needs.check-version.outputs.tag }}
 
-            ### What's Changed
             ${{ github.event.head_commit.message }}
 
-            ### Downloads
-            - **Linux:** `aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
-            - **Windows:** `aurora-browser-${{ needs.check-version.outputs.version }}-win.zip`
+            **Linux:** `sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
 
-            ### Install
-            **Linux:**
-            ```bash
-            sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
-            ```
-
-            **Windows:**
-            1. Extract the zip
-            2. Run `update.ps1` to download Chromium
-            3. Launch `aurora-browser.exe`
+            **Windows:** Extract zip, run `update.ps1`, launch `aurora-browser.exe`
           files: |
             aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
             aurora-browser-${{ needs.check-version.outputs.version }}-win.zip
