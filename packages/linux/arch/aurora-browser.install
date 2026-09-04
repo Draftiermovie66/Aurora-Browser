@@ -1,0 +1,18 @@
+post_install() {
+  update-desktop-database -q 2>/dev/null || true
+  gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+  xdg-icon-resource forceupdate 2>/dev/null || true
+  echo ">>> Aurora Browser installed."
+  echo ">>> Run 'aurora-browser' or open it from your application menu."
+  echo ">>> The Chromium engine will download on first launch (or run: sudo /opt/aurora-browser/update.sh)"
+}
+
+post_upgrade() {
+  post_install
+  echo ">>> Aurora Browser upgraded — restart the browser to use the new version."
+}
+
+post_remove() {
+  update-desktop-database -q 2>/dev/null || true
+  gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+}
