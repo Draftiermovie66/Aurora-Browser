@@ -1,44 +1,84 @@
 name: Release
 
+# Only release on annotated tags (e.g. v2.0.7). Pushing to main alone never publishes.
+# Create a release by:
+#   git tag -a v2.0.7 -m "Release v2.0.7"
+#   git push upstream v2.0.7
+# Or via GitHub UI: Draft a new release → Create new tag → Publish.
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
+    tags:
+      - 'v*.*.*'
+      - 'v*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v2.0.7) — must exist or will be created from HEAD'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   check-version:
     runs-on: ubuntu-latest
     outputs:
-      has_version: ${{ steps.check.outputs.has_version }}
-      version: ${{ steps.check.outputs.version }}
-      tag: ${{ steps.check.outputs.tag }}
+      version: ${{ steps.parse.outputs.version }}
+      tag: ${{ steps.parse.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Extract version from commit message
-        id: check
+      - name: Resolve tag & version
+        id: parse
         run: |
-          MSG=$(git log -1 --pretty=%s)
-          echo "Commit message: $MSG"
-          if [[ "$MSG" =~ [Vv]([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
-            VERSION="${BASH_REMATCH[1]}"
-            echo "has_version=true" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-            echo "### Detected version: v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
           else
-            echo "has_version=false" >> "$GITHUB_OUTPUT"
-            echo "### No version tag found in commit message" >> "$GITHUB_STEP_SUMMARY"
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "Tag: $TAG"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
+            echo "::error::Tag '$TAG' does not match v*.*(*) pattern"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%%-*}" # strip prerelease suffix for package version if needed
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "### Release tag: \`$TAG\` (version \`$VERSION\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify VERSION file matches tag
+        run: |
+          set -euo pipefail
+          FILE_VER="$(cat VERSION | tr -d ' \n\r')"
+          TAG_VER="${{ steps.parse.outputs.version }}"
+          echo "VERSION file: $FILE_VER"
+          echo "Tag version:  $TAG_VER"
+          if [ "$FILE_VER" != "$TAG_VER" ]; then
+            echo "::error::VERSION file ($FILE_VER) does not match tag version ($TAG_VER). Update VERSION and extension/package.json + packages/linux/arch/PKGBUILD before tagging."
+            exit 1
+          fi
+
+      - name: Verify extension version matches
+        run: |
+          EXT_VER="$(node -p "require('./extension/package.json').version")"
+          TAG_VER="${{ steps.parse.outputs.version }}"
+          echo "extension/package.json: $EXT_VER"
+          if [ "$EXT_VER" != "$TAG_VER" ]; then
+            echo "::error::extension/package.json ($EXT_VER) does not match tag ($TAG_VER)"
+            exit 1
           fi
 
   build-extension:
     needs: check-version
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,11 +87,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Upload extension artifact
@@ -62,7 +104,6 @@ jobs:
 
   build-deb:
     needs: [check-version, build-extension]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,18 +112,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Build .deb package
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev fakeroot
-          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/debian/build.sh
+          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/debian/build.sh
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
@@ -92,7 +135,6 @@ jobs:
 
   build-appimage:
     needs: [check-version, build-extension]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,18 +143,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Build AppImage
         run: |
           sudo apt-get update
           sudo apt-get install -y file libfuse2 desktop-file-utils imagemagick
-          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/appimage/build.sh
+          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/appimage/build.sh
 
       - name: List AppImage output
         run: ls -la build/*.AppImage
@@ -125,7 +169,6 @@ jobs:
 
   build-rpm:
     needs: [check-version, build-extension]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,11 +177,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Install rpmbuild
@@ -146,7 +191,7 @@ jobs:
 
       - name: Build RPM
         run: |
-          VERSION=${{ needs.check-version.outputs.version }} bash ./linux/redhat/build.sh
+          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/redhat/build.sh
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
@@ -156,7 +201,6 @@ jobs:
 
   build-windows:
     needs: [check-version, build-extension]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -165,11 +209,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Install Mono
@@ -185,15 +231,15 @@ jobs:
 
           cp -r extension/dist build/aurora-browser-${VERSION}-win/extension/dist
           cp extension/aurora.png build/aurora-browser-${VERSION}-win/extension/aurora.png
-          cp windows/update.ps1 build/aurora-browser-${VERSION}-win/
-          cp aurora.png build/aurora-browser-${VERSION}-win/
+          cp packages/windows/update.ps1 build/aurora-browser-${VERSION}-win/
+          cp assets/icons/aurora.png build/aurora-browser-${VERSION}-win/
           echo 'REPO="Draftiermovie66/Aurora-Browser"' > build/aurora-browser-${VERSION}-win/update.conf
           echo "CHROMIUM_VERSION=0" > build/aurora-browser-${VERSION}-win/version.txt
 
           mcs -out:build/aurora-browser-${VERSION}-win/aurora-browser.exe \
             -target:winexe \
             -r:System.dll \
-            windows/src/AuroraBrowser.cs
+            packages/windows/src/AuroraBrowser.cs
 
           echo "Compiled aurora-browser.exe"
 
@@ -212,20 +258,36 @@ jobs:
 
   build-arch:
     needs: check-version
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate PKGBUILD version sync
+        run: |
+          PKG_VER="$(grep '^pkgver=' packages/linux/arch/PKGBUILD | cut -d= -f2)"
+          TAG_VER="${{ needs.check-version.outputs.version }}"
+          echo "PKGBUILD pkgver: $PKG_VER vs tag $TAG_VER"
+          if [ "$PKG_VER" != "$TAG_VER" ]; then
+            echo "::error::PKGBUILD pkgver ($PKG_VER) != tag version ($TAG_VER)"
+            exit 1
+          fi
 
       - name: Upload Arch PKGBUILD
         uses: actions/upload-artifact@v4
         with:
           name: arch-pkgbuild
+          path: |
+            packages/linux/arch/PKGBUILD
+            packages/linux/arch/aurora-browser.install
+
+      - name: Upload legacy Arch PKGBUILD (compat)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-pkgbuild-legacy
           path: linux/arch/PKGBUILD
 
   build-macos:
     needs: [check-version, build-extension]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -234,19 +296,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
 
       - name: Build React extension
         working-directory: extension
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Build macOS BETA app + dmg
         run: |
-          VERSION=${{ needs.check-version.outputs.version }} bash ./macos/build.sh
+          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/macos/build.sh
 
       - name: List macOS output
-        run: ls -la build/macos build/*.dmg
+        run: ls -la build/macos build/*.dmg || ls -R build || true
 
       - name: Upload macOS BETA artifact
         uses: actions/upload-artifact@v4
@@ -258,10 +322,7 @@ jobs:
 
   create-release:
     needs: [check-version, build-deb, build-appimage, build-rpm, build-windows, build-arch, build-macos]
-    if: needs.check-version.outputs.has_version == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Download .deb
         uses: actions/download-artifact@v4
@@ -297,7 +358,7 @@ jobs:
         run: mv PKGBUILD aurora-browser-PKGBUILD
 
       - name: Make AppImage executable
-        run: chmod +x Aurora-Browser-*.AppImage
+        run: chmod +x Aurora-Browser-*.AppImage || true
 
       - name: List release assets
         run: ls -la
@@ -307,17 +368,18 @@ jobs:
         with:
           tag_name: ${{ needs.check-version.outputs.tag }}
           name: Aurora Browser ${{ needs.check-version.outputs.tag }}
+          generate_release_notes: true
           body: |
             ## Aurora Browser ${{ needs.check-version.outputs.tag }}
 
-            ${{ github.event.head_commit.message }}
+            > **Note:** This release was triggered by tag `${{ needs.check-version.outputs.tag }}`. See [VERSION](https://github.com/Draftiermovie66/Aurora-Browser/blob/${{ needs.check-version.outputs.tag }}/VERSION) for the single source of truth.
 
             ### Downloads
 
             **Linux:**
             - Ubuntu/Debian/Mint: `aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
             - Fedora/RHEL/CentOS: `aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm`
-            - Arch/Manjaro: `aurora-browser-PKGBUILD`
+            - Arch/Manjaro: `aurora-browser-PKGBUILD` + `aurora-browser.install` (run `makepkg -si` in `packages/linux/arch`)
             - Universal: `Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage`
 
             **Windows:**
@@ -327,6 +389,7 @@ jobs:
             - `Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg`
 
             ### Install
+
             **Ubuntu/Debian:**
             ```
             sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
@@ -337,9 +400,18 @@ jobs:
             chmod +x Aurora-Browser-*.AppImage && ./Aurora-Browser-*.AppImage
             ```
 
+            **Arch:**
+            ```
+            cd packages/linux/arch && makepkg -si
+            ```
+
             **Windows:** Download the `.exe` (place it in a folder alongside `update.ps1`, the `extension/` dir, and a `chrome-win/` engine dir), launch `aurora-browser.exe`
 
             **macOS BETA:** Open DMG, drag Aurora Browser to Applications
+
+            ---
+
+            **Full changelog:** https://github.com/Draftiermovie66/Aurora-Browser/compare/${{ needs.check-version.outputs.tag }}...HEAD
           files: |
             aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
             Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage
