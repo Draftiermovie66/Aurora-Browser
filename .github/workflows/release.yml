@@ -296,6 +296,9 @@ jobs:
       - name: Rename PKGBUILD
         run: mv PKGBUILD aurora-browser-PKGBUILD
 
+      - name: Make AppImage executable
+        run: chmod +x Aurora-Browser-*.AppImage
+
       - name: List release assets
         run: ls -la
 

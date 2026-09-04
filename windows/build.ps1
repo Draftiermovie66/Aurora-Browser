@@ -10,10 +10,11 @@ Write-Host "Building Aurora Browser $version for Windows..."
 if (Test-Path $BUILD) { Remove-Item -Recurse -Force $BUILD }
 New-Item -ItemType Directory -Force -Path $BUILD | Out-Null
 
-# Copy extension
+# Copy extension (exclude node_modules: dev-only build deps, 60MB+)
 $EXT_SRC = Join-Path $ROOT "extension"
 $EXT_DST = Join-Path $BUILD "extension"
-Copy-Item -Recurse -Path $EXT_SRC -Destination $EXT_DST
+New-Item -ItemType Directory -Force -Path $EXT_DST | Out-Null
+robocopy $EXT_SRC $EXT_DST /E /XD node_modules /NFL /NDL /NJH /NJS | Out-Null
 
 # Copy config
 @"

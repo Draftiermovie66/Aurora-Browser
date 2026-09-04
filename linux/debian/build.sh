@@ -68,8 +68,8 @@ chrome-linux.old/
 profile/
 GI
 
-# extension
-cp -r "$ROOT/extension/"* "$TMP/opt/aurora-browser/extension/"
+# extension (exclude node_modules: dev-only build deps, 60MB+)
+rsync -a --exclude 'node_modules' "$ROOT/extension/" "$TMP/opt/aurora-browser/extension/"
 
 # .desktop
 cat > "$TMP/usr/share/applications/aurora-browser.desktop" <<'DESK'

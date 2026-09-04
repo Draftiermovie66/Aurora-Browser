@@ -31,7 +31,7 @@ cp "$COMMON/setup-sandbox.sh" "$STAGE/opt/aurora-browser/setup-sandbox.sh"
 chmod +x "$STAGE/opt/aurora-browser/setup-sandbox.sh"
 echo "CHROMIUM_VERSION=0" > "$STAGE/opt/aurora-browser/version.txt"
 mkdir -p "$STAGE/opt/aurora-browser/profile" "$STAGE/opt/aurora-browser/extension"
-cp -r "$ROOT/extension/"* "$STAGE/opt/aurora-browser/extension/"
+rsync -a --exclude 'node_modules' "$ROOT/extension/" "$STAGE/opt/aurora-browser/extension/"
 cp "$ROOT/aurora.png" "$STAGE/usr/share/icons/hicolor/48x48/apps/aurora-browser.png"
 ln -s /opt/aurora-browser/launch-aurora.sh "$STAGE/usr/bin/aurora-browser"
 

@@ -32,7 +32,7 @@ mkdir -p "$APPDIR/opt/aurora-browser/profile"
 mkdir -p "$APPDIR/opt/aurora-browser/extension"
 
 # Extension
-cp -r "$ROOT/extension/"* "$APPDIR/opt/aurora-browser/extension/"
+rsync -a --exclude 'node_modules' "$ROOT/extension/" "$APPDIR/opt/aurora-browser/extension/"
 
 # Icon
 # linuxdeploy requires icons at specific resolutions (not 800x800).
@@ -104,12 +104,24 @@ fi
 ENGINE="$DATA_DIR/chrome-linux/chrome"
 [ -x "$ENGINE" ] || INSTALL_DIR="$DATA_DIR" "$APPDIR/opt/aurora-browser/update.sh"
 
+ENGINE_VER="$(sed -n 's/^CHROMIUM_VERSION=//p' "$DATA_DIR/version.txt" 2>/dev/null)"
+[ -z "$ENGINE_VER" ] && ENGINE_VER="152.0.0.0"
+AURORA_UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ENGINE_VER} Safari/537.36 AuroraBrowser/${ENGINE_VER%%.*}"
+
+# Default to the Aurora new tab page when launching without a URL.
+if [ $# -eq 0 ]; then
+  set -- chrome://newtab
+fi
+
 FLAGS=(
   --user-data-dir="$DATA_DIR/profile"
   --no-first-run
   --disable-features=TranslateUI
   --disable-setuid-sandbox
+  --disable-background-networking
+  --disable-component-update
   --class=Aurora-Browser
+  --user-agent="$AURORA_UA"
   --load-extension="$DATA_DIR/extension"
 )
 exec "$ENGINE" "${FLAGS[@]}" "$@"

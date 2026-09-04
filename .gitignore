@@ -9,4 +9,3 @@ build/
 *.AppImage
 *.dmg
 node_modules/
-extension/dist/

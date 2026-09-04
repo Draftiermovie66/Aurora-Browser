@@ -88,18 +88,30 @@ if [ ! -f "$UPDATE_CHECK" ] || [ "$(find "$UPDATE_CHECK" -mtime +0)" ]; then
   "$RES/update.sh" --quiet >/dev/null 2>&1 &
 fi
 
+ENGINE_VER="$(sed -n 's/^CHROMIUM_VERSION=//p' "$RES/version.txt" 2>/dev/null)"
+[ -z "$ENGINE_VER" ] && ENGINE_VER="152.0.0.0"
+AURORA_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ENGINE_VER} Safari/537.36 AuroraBrowser/${ENGINE_VER%%.*}"
+
+# Default to the Aurora new tab page when launching without a URL.
+if [ $# -eq 0 ]; then
+  set -- "chrome://newtab"
+fi
+
 FLAGS=(
   "--user-data-dir=$PROFILE"
   "--load-extension=$EXT"
   "--no-first-run"
   "--disable-features=TranslateUI"
+  "--disable-background-networking"
+  "--disable-component-update"
+  "--user-agent=$AURORA_UA"
 )
 exec "$ENGINE" "${FLAGS[@]}" "$@"
 LAUNCH
 chmod +x "$APP/Contents/MacOS/launch-aurora"
 
-# Copy extension
-cp -r "$ROOT/extension/"* "$APP/Contents/Resources/extension/"
+# Copy extension (exclude node_modules: dev-only build deps)
+rsync -a --exclude 'node_modules' "$ROOT/extension/" "$APP/Contents/Resources/extension/"
 cp "$ROOT/aurora.png" "$APP/Contents/Resources/aurora.png"
 
 # version + update config

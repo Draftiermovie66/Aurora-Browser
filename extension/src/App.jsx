@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GearIcon from './components/GearIcon';
 import SearchIcon from './components/SearchIcon';
+import SettingsPage from './components/SettingsPage';
 import ThemePicker from './components/ThemePicker';
 import ShortcutEditor from './components/ShortcutEditor';
 import { THEMES, applyTheme, getSavedTheme, saveTheme } from './theme';
 import { loadShortcuts, saveShortcuts, DEFAULT_SHORTCUTS } from './shortcuts';
+import { SEARCH_ENGINES, loadSearchEngine, saveSearchEngine } from './search';
 
 // beUI-style motion tokens
 const EASE_OUT = [0.16, 1, 0.3, 1];
@@ -80,6 +82,8 @@ export default function App() {
   const [theme, setTheme] = useState(getSavedTheme());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchEngine, setSearchEngine] = useState(() => loadSearchEngine());
   const [release, setRelease] = useState(null);
   const [shortcuts, setShortcuts] = useState(() => loadShortcuts());
   const [query, setQuery] = useState(loadLastSearch);
@@ -92,6 +96,16 @@ export default function App() {
 
   useEffect(() => {
     getReleaseNotes().then(setRelease).catch(() => {});
+  }, []);
+
+  // Open the settings page when addressed as ...#settings (also live updates).
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash === '#settings') setSettingsOpen(true);
+    };
+    onHash();
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   // Global keyboard shortcuts.
@@ -107,6 +121,7 @@ export default function App() {
       if (e.key === 'Escape') {
         setPickerOpen(false);
         setEditorOpen(false);
+        setSettingsOpen(false);
       }
       // "/" focuses the search box
       if (!mod && e.key === '/' && document.activeElement !== searchRef.current) {
@@ -152,6 +167,14 @@ export default function App() {
     saveShortcuts(next);
   };
 
+  const handleSearchEngineChange = (next) => {
+    const engine = typeof next === 'string'
+      ? SEARCH_ENGINES.find(e => e.id === next) || SEARCH_ENGINES[0]
+      : next;
+    setSearchEngine(engine);
+    saveSearchEngine(engine.id);
+  };
+
   return (
     <motion.div className="app"
       initial={{ opacity: 0 }}
@@ -160,8 +183,18 @@ export default function App() {
     >
       <div className="top-bar">
         <motion.button
+          className="settings-link-btn"
+          onClick={() => setSettingsOpen(true)}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          transition={SPRING_REVEAL}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </motion.button>
+        <motion.button
           className="gear-btn"
-          onClick={() => setPickerOpen(true)}
+          onClick={() => setSettingsOpen(true)}
           title="Settings"
           whileHover={{ scale: 1.1, rotate: 45 }}
           whileTap={{ scale: 0.9 }}
@@ -184,7 +217,7 @@ export default function App() {
 
         <motion.form
           className="search"
-          action="https://www.google.com/search"
+          action={searchEngine.action}
           method="GET"
           target="_top"
           onSubmit={handleSearchSubmit}
@@ -195,11 +228,11 @@ export default function App() {
         >
           <input
             type="text"
-            name="q"
+            name={searchEngine.param}
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the web"
+            placeholder={"Search the web"}
             autoFocus
           />
           <SearchIcon />
@@ -318,6 +351,21 @@ export default function App() {
       </motion.footer>
 
       <AnimatePresence>
+        {settingsOpen && (
+          <SettingsPage
+            theme={theme}
+            onApplyTheme={(t) => { handleThemeChange(t); }}
+            searchEngine={searchEngine}
+            onSearchEngine={handleSearchEngineChange}
+            shortcuts={shortcuts}
+            onSaveShortcuts={handleShortcutsChange}
+            onClose={() => {
+              setSettingsOpen(false);
+              if (window.location.hash === '#settings') window.location.hash = '';
+            }}
+          />
+        )}
+
         {pickerOpen && (
           <ThemePicker
             current={theme}

@@ -36,12 +36,34 @@ body {
   border: none;
   color: #8f8f9d;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
+  padding: 8px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #bfbfc8;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-right: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.settings-link-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fbfbfe;
+  border-color: rgba(255,255,255,0.25);
 }
 
 .gear-btn:hover {
@@ -531,4 +553,285 @@ body {
   .shortcuts-grid { grid-template-columns: repeat(4, 1fr); }
   .stories-grid { grid-template-columns: repeat(2, 1fr); }
   .main { margin-top: 6vh; }
+}
+
+/* ===== custom Aurora settings page ===== */
+.settings-page {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(12, 12, 16, 0.82);
+  backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.settings-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.settings-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.settings-title h1 {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fbfbfe;
+}
+
+.settings-title p {
+  font-size: 12px;
+  color: #8f8f9d;
+  margin-top: 2px;
+}
+
+.settings-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.settings-nav {
+  width: 190px;
+  flex-shrink: 0;
+  padding: 18px 12px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-tab {
+  text-align: left;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #b8b8c2;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-tab:hover { background: rgba(255,255,255,0.05); color: #fbfbfe; }
+.settings-tab.active { background: rgba(122,86,233,0.2); color: #c9b7ff; }
+
+.settings-content {
+  flex: 1;
+  padding: 26px 32px;
+  overflow-y: auto;
+}
+
+.settings-section h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fbfbfe;
+  margin-bottom: 6px;
+}
+
+.settings-desc {
+  font-size: 12px;
+  color: #8f8f9d;
+  margin-bottom: 18px;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+/* theme cards */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  max-width: 560px;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.theme-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.25); }
+.theme-card.active { border-color: #7a56e9; box-shadow: 0 0 0 1px #7a56e9; }
+
+.theme-swatch-lg {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--card-bg, #2b2a33), var(--card-bg, #2b2a33));
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.custom-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8f8f9d;
+  font-size: 20px;
+  background: linear-gradient(135deg, #7a56e9, #22d3ee);
+}
+
+.theme-name {
+  font-size: 11px;
+  color: #b8b8c2;
+  text-transform: capitalize;
+  font-family: var(--font-mono);
+}
+
+/* engine list */
+.engine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 480px;
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  color: #e4e4ec;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.engine-row:hover { border-color: rgba(255,255,255,0.25); }
+.engine-row.active { border-color: #7a56e9; background: rgba(122,86,233,0.12); }
+
+.engine-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.engine-row.active .engine-radio { border-color: #7a56e9; }
+
+.engine-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7a56e9;
+}
+
+/* count + buttons */
+.settings-count {
+  font-size: 12px;
+  color: #8f8f9d;
+  margin-bottom: 14px;
+}
+
+.settings-btn {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #7a56e9;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-btn:hover { background: #8b6bf0; }
+
+/* about */
+.about-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  margin-bottom: 14px;
+}
+
+.about-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fbfbfe;
+  margin-bottom: 4px;
+}
+
+.about-desc {
+  font-size: 13px;
+  color: #8f8f9d;
+  max-width: 420px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.about-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-links a {
+  font-size: 13px;
+  color: #a78bfa;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.about-links a:hover { color: #c9b7ff; text-decoration: underline; }
+
+/* footer */
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 28px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.settings-foot .cancel {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: #bfbfc8;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-foot .cancel:hover { background: rgba(255,255,255,0.14); }
+
+.saved-toast {
+  font-size: 12px;
+  color: #86efac;
+}
+
+@media (max-width: 640px) {
+  .settings-nav { width: 100px; padding: 14px 8px; }
+  .settings-content { padding: 20px 18px; }
+  .settings-tab { font-size: 12px; padding: 8px 10px; }
 }

@@ -18,6 +18,27 @@ namespace AuroraBrowser
             string chromeExe = Path.Combine(dir, "chrome-win", "chrome.exe");
             string profileDir = Path.Combine(dir, "profile");
             string extensionDir = Path.Combine(dir, "extension");
+            string versionFile = Path.Combine(dir, "version.txt");
+
+            string engineVer = "152.0.0.0";
+            try
+            {
+                if (File.Exists(versionFile))
+                {
+                    foreach (string line in File.ReadAllLines(versionFile))
+                    {
+                        if (line.StartsWith("CHROMIUM_VERSION="))
+                        {
+                            engineVer = line.Substring("CHROMIUM_VERSION=".Length).Trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception) { }
+            if (string.IsNullOrWhiteSpace(engineVer)) engineVer = "152.0.0.0";
+            string majorVer = engineVer.Contains(".") ? engineVer.Substring(0, engineVer.IndexOf('.')) : engineVer;
+            string ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + engineVer + " Safari/537.36 AuroraBrowser/" + majorVer;
 
             if (!File.Exists(updateCheck))
             {
@@ -51,8 +72,14 @@ namespace AuroraBrowser
             psi.ArgumentList.Add("--user-data-dir=" + profileDir);
             psi.ArgumentList.Add("--no-first-run");
             psi.ArgumentList.Add("--disable-features=TranslateUI");
+            psi.ArgumentList.Add("--disable-background-networking");
+            psi.ArgumentList.Add("--disable-component-update");
+            psi.ArgumentList.Add("--user-agent=" + ua);
             if (Directory.Exists(extensionDir))
                 psi.ArgumentList.Add("--load-extension=" + extensionDir);
+
+            if (args.Length == 0)
+                psi.ArgumentList.Add("chrome://newtab");
 
             foreach (string a in args)
                 psi.ArgumentList.Add(a);
