@@ -1,5 +1,6 @@
 name-template: 'Aurora Browser v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
+publish: true
 version-resolver:
   major:
     labels: ['major']

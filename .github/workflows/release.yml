@@ -298,6 +298,11 @@ jobs:
             ---
             **Engine:** LibWeb (Ladybird) — BSD-2-Clause
             **Browser:** Aurora Browser — MIT
+          files: |
+            aurora-browser-*-linux-x86_64.tar.gz
+            Aurora-Browser-*-macOS.dmg
+            aurora-browser-*-windows/README.txt
+            checksums-SHA256-*.txt
           draft: false
           prerelease: false
         env:
