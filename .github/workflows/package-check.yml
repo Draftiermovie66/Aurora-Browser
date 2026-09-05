@@ -18,19 +18,16 @@ jobs:
 
       - name: Validate engine build scripts
         run: |
-          bash -n engine/build.sh && echo "OK: engine/build.sh"
-          bash -n engine/brand.sh && echo "OK: engine/brand.sh"
-          bash -n engine/package.sh && echo "OK: engine/package.sh"
-          bash -n engine/sign.sh && echo "OK: engine/sign.sh"
-          bash -n engine/checksums.sh && echo "OK: engine/checksums.sh"
+          set -e
+          for f in engine/build.sh engine/brand.sh engine/package.sh engine/sign.sh engine/checksums.sh; do
+            bash -n "$f" && echo "OK: $f"
+          done
 
       - name: Validate installer build script
-        run: |
-          bash -n installer/build.sh && echo "OK: installer/build.sh"
+        run: bash -n installer/build.sh && echo "OK: installer/build.sh"
 
-      - name: Validate CI/release workflows
-        run: |
-          bash -n scripts/build/build.sh && echo "OK: scripts/build/build.sh"
+      - name: Validate build orchestrator
+        run: bash -n scripts/build/build.sh && echo "OK: scripts/build/build.sh"
 
   validate-version:
     name: Validate VERSION
@@ -56,16 +53,16 @@ jobs:
 
       - name: Check YAML syntax
         run: |
-          pip install yamllint 2>/dev/null || true
-          for f in .github/workflows/*.yml; do
-            echo "--- Checking $f ---"
-            yamllint -d relaxed "$f" 2>/dev/null || python3 -c "
-          import yaml, sys
-          try:
-              yaml.safe_load(open('$f'))
-              print('YAML OK: $f')
-          except Exception as e:
-              print(f'YAML ERROR: $f: {e}')
+          python3 -c "
+          import yaml, sys, glob
+          ok = True
+          for f in sorted(glob.glob('.github/workflows/*.yml')):
+              try:
+                  yaml.safe_load(open(f))
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f}: {e}')
+                  ok = False
+          if not ok:
               sys.exit(1)
           "
-          done

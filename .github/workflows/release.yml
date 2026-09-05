@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v3.0.0)'
+        description: 'Tag to release (e.g. v2.1.0)'
         required: true
         type: string
 
@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve tag & version
+      - name: Resolve tag and version
         id: parse
         run: |
           set -euo pipefail
@@ -52,7 +52,7 @@ jobs:
           VERSION="${VERSION%%-*}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "### Release: \`$TAG\` (v$VERSION)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Release: $TAG (v$VERSION)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify VERSION matches tag
         run: |
@@ -73,8 +73,9 @@ jobs:
 
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt-get update && sudo apt-get install -y pigz
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /tmp/extracted
+          sudo apt-get update
+          sudo apt-get install -y pigz
           df -h /
 
       - name: Install build dependencies
@@ -82,15 +83,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential clang lld cmake ninja-build \
-            git rustup pkg-config autoconf autoconf-archive automake nasm \
+            git pkg-config autoconf autoconf-archive automake nasm \
             qt6-base-dev qt6-tools-dev-tools qt6-wayland \
             libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libssl-dev \
             zip unzip tar curl ccache python3
 
-      - name: Setup Rust
+      - name: Install Rust
         run: |
-          rustup default stable || true
-          rustup update || true
+          if ! command -v rustup &>/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source "$HOME/.cargo/env"
+          fi
+          rustup default stable
+          rustup update
 
       - name: Clone Ladybird
         run: |
@@ -102,18 +107,15 @@ jobs:
 
       - name: Build Ladybird (Release)
         working-directory: build/ladybird
-        run: BUILD_PRESET=Release ./Meta/ladybird.py build
+        run: |
+          source "$HOME/.cargo/env" 2>/dev/null || true
+          BUILD_PRESET=Release ./Meta/ladybird.py build
 
       - name: Package Aurora Browser
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
           bash ./engine/package.sh build/ladybird \
             build/aurora-browser-${VERSION}-linux $VERSION
-
-      - name: Generate checksums
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/checksums.sh build $VERSION
 
       - name: Create tarball
         run: |
@@ -122,12 +124,19 @@ jobs:
           tar -czf aurora-browser-${VERSION}-linux-x86_64.tar.gz \
             aurora-browser-${VERSION}-linux/
 
+      - name: Generate checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          cd build
+          sha256sum aurora-browser-${VERSION}-linux-x86_64.tar.gz \
+            > checksums-SHA256-${VERSION}.txt
+          cat checksums-SHA256-${VERSION}.txt
+
       - name: Upload Linux build
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: |
-            build/aurora-browser-*-linux/
             build/aurora-browser-*-linux-x86_64.tar.gz
             build/checksums-SHA256-*.txt
 
@@ -142,7 +151,7 @@ jobs:
         run: |
           brew install autoconf autoconf-archive automake ccache cmake \
             libtool nasm ninja pkg-config
-          brew install llvm@21 || true
+          brew install llvm || true
 
       - name: Clone Ladybird
         run: |
@@ -155,9 +164,10 @@ jobs:
       - name: Build Ladybird (Release)
         working-directory: build/ladybird
         run: |
-          if [ -d "$(brew --prefix llvm 2>/dev/null || echo /nonexistent)" ]; then
-            export CC="$(brew --prefix llvm)/bin/clang"
-            export CXX="$(brew --prefix llvm)/bin/clang++"
+          LLVM_DIR="$(brew --prefix llvm 2>/dev/null || true)"
+          if [ -d "$LLVM_DIR" ]; then
+            export CC="$LLVM_DIR/bin/clang"
+            export CXX="$LLVM_DIR/bin/clang++"
           fi
           BUILD_PRESET=Release ./Meta/ladybird.py build
 
@@ -189,16 +199,20 @@ jobs:
       - name: Generate checksums
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/checksums.sh build $VERSION
+          cd build
+          DMG=$(ls Aurora-Browser-*-macOS.dmg 2>/dev/null | head -n1)
+          if [ -n "$DMG" ]; then
+            sha256sum "$DMG" > checksums-SHA256-macos-${VERSION}.txt
+            cat checksums-SHA256-macos-${VERSION}.txt
+          fi
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
-            build/aurora-browser-*-macos/
             build/Aurora-Browser-*-macOS.dmg
-            build/checksums-SHA256-*.txt
+            build/checksums-SHA256-macos-*.txt
 
   build-windows:
     needs: check-version
@@ -206,15 +220,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build info
+      - name: Create Windows package info
         run: |
-          echo "::notice::Native Windows builds require WSL2."
-          echo "Windows support is experimental. Building docs package."
           VERSION=${{ needs.check-version.outputs.version }}
           mkdir -p build/aurora-browser-${VERSION}-windows
-          cat > build/aurora-browser-${VERSION}-windows/README.txt <<EOF
-          Aurora Browser v${VERSION} for Windows
-          =====================================
+          cat > build/aurora-browser-${VERSION}-windows/README.txt << 'EOF'
+          Aurora Browser for Windows
+          ==========================
 
           Windows builds require WSL2 (Windows Subsystem for Linux).
           See: https://ladybird.org/building
@@ -223,22 +235,13 @@ jobs:
           1. Install WSL2 with Ubuntu 24.04+
           2. Follow the Linux build instructions
           3. The binary will work natively on Windows
-
-          Alternatively, use the Linux build inside WSL2.
           EOF
-
-      - name: Generate checksums
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/checksums.sh build $VERSION
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: |
-            build/aurora-browser-*-windows/
-            build/checksums-SHA256-*.txt
+          path: build/aurora-browser-*-windows/
 
   create-release:
     needs: [check-version, build-linux, build-macos, build-windows]
@@ -252,24 +255,7 @@ jobs:
           merge-multiple: true
 
       - name: List release assets
-        run: find . -maxdepth 4 -type f | grep -v '.git' | sort
-
-      - name: Generate combined checksums
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          cat > checksums-SHA256-${VERSION}.txt <<EOF
-          # Aurora Browser v${VERSION} — SHA256 Checksums
-          # Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          EOF
-          find . -maxdepth 4 -type f \
-            \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.zip" \
-               -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" \
-               -o -name "*.AppImage" \) | sort | while read -r f; do
-            [ -f "$f" ] || continue
-            hash=$(sha256sum "$f" | cut -d' ' -f1)
-            echo "$hash  $(basename "$f")" >> checksums-SHA256-${VERSION}.txt
-          done
-          cat checksums-SHA256-${VERSION}.txt
+        run: find . -maxdepth 3 -type f -not -path './.git/*' | sort
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -302,9 +288,6 @@ jobs:
             **Windows:**
             - Build from source using WSL2 (see README.txt)
 
-            ### Verify downloads
-            See `checksums-SHA256-${{ needs.check-version.outputs.version }}.txt`
-
             ### Build from source
             ```bash
             git clone https://github.com/Draftiermovie66/Aurora-Browser
@@ -315,8 +298,6 @@ jobs:
             ---
             **Engine:** LibWeb (Ladybird) — BSD-2-Clause
             **Browser:** Aurora Browser — MIT
-          files: |
-            checksums-SHA256-${{ needs.check-version.outputs.version }}.txt
           draft: false
           prerelease: false
         env:
