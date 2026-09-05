@@ -24,10 +24,12 @@ jobs:
           done
 
       - name: Validate installer build script
-        run: bash -n installer/build.sh && echo "OK: installer/build.sh"
+        run: |
+          bash -n installer/build.sh && echo "OK: installer/build.sh"
 
       - name: Validate build orchestrator
-        run: bash -n scripts/build/build.sh && echo "OK: scripts/build/build.sh"
+        run: |
+          bash -n scripts/build/build.sh && echo "OK: scripts/build/build.sh"
 
   validate-version:
     name: Validate VERSION
@@ -59,9 +61,9 @@ jobs:
           for f in sorted(glob.glob('.github/workflows/*.yml')):
               try:
                   yaml.safe_load(open(f))
-                  print(f'OK: {f}')
+                  print('OK: ' + f)
               except Exception as e:
-                  print(f'FAIL: {f}: {e}')
+                  print('FAIL: ' + f + ': ' + str(e))
                   ok = False
           if not ok:
               sys.exit(1)
