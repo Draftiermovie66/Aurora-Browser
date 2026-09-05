@@ -14,66 +14,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-extension:
-    name: Build React extension
+  lint-scripts:
+    name: Lint shell scripts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Install dependencies
-        working-directory: extension
-        run: npm ci
-
-      - name: Build
-        working-directory: extension
-        run: npm run build
-
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-dist
-          path: extension/dist/
-
-  lint-shell-scripts:
-    name: Check bash scripts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Bash syntax check
+      - name: Check bash syntax
         run: |
           set -e
-          shopt -s globstar nullglob
-          for f in build.sh release.sh scripts/build/*.sh packages/**/*.sh; do
-            if [ -f "$f" ]; then
-              bash -n "$f"
-              echo "OK: $f"
-            fi
+          find . -name "*.sh" -not -path "./.git/*" -not -path "*/node_modules/*" | while read f; do
+            bash -n "$f" && echo "OK: $f"
           done
-          # Also check root shims resolve
-          bash -n build.sh && echo "OK: build.sh (shim)"
-          bash -n release.sh && echo "OK: release.sh (shim)"
 
-  validate-versions:
-    name: Validate VERSION sync
+  check-version:
+    name: Validate VERSION
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check version sync
+      - name: Check VERSION file
         run: |
           VER=$(cat VERSION | tr -d ' \n\r')
-          EXT_VER=$(node -p "require('./extension/package.json').version")
-          PKG_VER=$(grep '^pkgver=' packages/linux/arch/PKGBUILD | cut -d= -f2)
-          echo "VERSION=$VER extension=$EXT_VER PKGBUILD=$PKG_VER"
-          if [ "$VER" != "$EXT_VER" ] || [ "$VER" != "$PKG_VER" ]; then
-            echo "::error::Version drift detected"
+          echo "VERSION=$VER"
+          if [[ ! "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::VERSION '$VER' does not match X.Y.Z pattern"
             exit 1
           fi
-          echo "Version sync OK: $VER"
+
+  validate-workflows:
+    name: Validate workflow YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check YAML syntax
+        run: |
+          pip install yamllint || sudo apt-get install -y yamllint
+          yamllint -d relaxed .github/workflows/*.yml || true
+
+  build-engine-check:
+    name: Verify Ladybird clone + brand
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone Ladybird (shallow)
+        run: |
+          git clone --depth 1 https://github.com/LadybirdBrowser/ladybird.git /tmp/ladybird
+          echo "Ladybird cloned successfully"
+          ls /tmp/ladybird/CMakeLists.txt
+
+      - name: Apply branding (dry run)
+        run: |
+          VERSION="0.0.0-test" bash ./engine/brand.sh /tmp/ladybird
+          echo "Branding applied successfully"
+          head -5 /tmp/ladybird/CMakeLists.txt

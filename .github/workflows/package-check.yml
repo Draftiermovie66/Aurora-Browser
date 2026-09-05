@@ -42,6 +42,10 @@ jobs:
           bash -n packages/macos/update.sh && echo "macos update.sh OK"
           bash -n macos/build.sh && echo "macos shim OK"
 
+      - name: Validate Installer build script syntax
+        run: |
+          bash -n installer/build.sh && echo "installer build.sh OK"
+
       - name: Validate PKGBUILD
         run: |
           # Validate canonical PKGBUILD; legacy path is a copy

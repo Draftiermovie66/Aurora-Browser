@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurora Browser</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .aurora-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0, 200, 150, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 30%, rgba(100, 0, 255, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(0, 150, 255, 0.1) 0%, transparent 50%);
+      z-index: -1;
+      animation: aurora-shift 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes aurora-shift {
+      0% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 0.8; transform: scale(0.98); }
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 0 20px rgba(0, 200, 150, 0.4));
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #00c896, #6400ff, #0096ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 48px;
+      letter-spacing: 1px;
+    }
+
+    .search-container {
+      width: 100%;
+      max-width: 560px;
+      padding: 0 24px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 16px 24px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .search-box:focus {
+      border-color: rgba(0, 200, 150, 0.5);
+      box-shadow: 0 0 20px rgba(0, 200, 150, 0.1);
+    }
+
+    .search-box::placeholder {
+      color: #666;
+    }
+
+    .shortcuts {
+      display: flex;
+      gap: 16px;
+      margin-top: 48px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .shortcut {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      color: #aaa;
+      transition: all 0.2s ease;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .shortcut:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .shortcut-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      font-size: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .shortcut:hover .shortcut-icon {
+      background: rgba(0, 200, 150, 0.15);
+      box-shadow: 0 0 12px rgba(0, 200, 150, 0.2);
+    }
+
+    .shortcut-label {
+      font-size: 12px;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 16px;
+      font-size: 12px;
+      color: #444;
+    }
+
+    .footer a {
+      color: #00c896;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="aurora-bg"></div>
+
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="45" stroke="url(#grad)" stroke-width="2" fill="none" opacity="0.3"/>
+    <path d="M50 10 C20 30, 15 70, 50 90 C85 70, 80 30, 50 10Z"
+          fill="url(#grad)" opacity="0.6"/>
+    <path d="M50 25 C30 40, 28 65, 50 80 C72 65, 70 40, 50 25Z"
+          fill="url(#grad2)" opacity="0.8"/>
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#00c896"/>
+        <stop offset="100%" style="stop-color:#6400ff"/>
+      </linearGradient>
+      <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#0096ff"/>
+        <stop offset="100%" style="stop-color:#00c896"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <h1>Aurora Browser</h1>
+  <p class="subtitle">Open source. Custom engine. Your web.</p>
+
+  <div class="search-container">
+    <input type="text" class="search-box" id="search"
+           placeholder="Search the web or enter URL..." autofocus>
+  </div>
+
+  <div class="shortcuts">
+    <a class="shortcut" href="https://github.com/Draftiermovie66/Aurora-Browser">
+      <div class="shortcut-icon">&#9733;</div>
+      <span class="shortcut-label">GitHub</span>
+    </a>
+    <a class="shortcut" href="https://duckduckgo.com">
+      <div class="shortcut-icon">&#128269;</div>
+      <span class="shortcut-label">DuckDuckGo</span>
+    </a>
+    <a class="shortcut" href="https://wikipedia.org">
+      <div class="shortcut-icon">&#128214;</div>
+      <span class="shortcut-label">Wikipedia</span>
+    </a>
+    <a class="shortcut" href="https://youtube.com">
+      <div class="shortcut-icon">&#9654;</div>
+      <span class="shortcut-label">YouTube</span>
+    </a>
+    <a class="shortcut" href="https://reddit.com">
+      <div class="shortcut-icon">&#128172;</div>
+      <span class="shortcut-label">Reddit</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    Powered by <a href="https://ladybird.org">LibWeb</a> engine &middot; BSD licensed
+  </div>
+
+  <script>
+    const searchBox = document.getElementById('search');
+    searchBox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = searchBox.value.trim();
+        if (!val) return;
+        if (val.match(/^https?:\/\//) || val.match(/^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/)) {
+          window.location.href = val.startsWith('http') ? val : 'https://' + val;
+        } else {
+          window.location.href = 'https://duckduckgo.com/?q=' + encodeURIComponent(val);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

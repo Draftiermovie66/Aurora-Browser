@@ -1,10 +1,5 @@
 name: Release
 
-# Only release on annotated tags (e.g. v2.0.7). Pushing to main alone never publishes.
-# Create a release by:
-#   git tag -a v2.0.7 -m "Release v2.0.7"
-#   git push upstream v2.0.7
-# Or via GitHub UI: Draft a new release → Create new tag → Publish.
 on:
   push:
     tags:
@@ -13,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v2.0.7) — must exist or will be created from HEAD'
+        description: 'Tag to release (e.g. v3.0.0)'
         required: true
         type: string
 
@@ -23,6 +18,10 @@ concurrency:
 
 permissions:
   contents: write
+
+env:
+  LADYBIRD_REPO: "https://github.com/LadybirdBrowser/ladybird.git"
+  LADYBIRD_BRANCH: "main"
 
 jobs:
   check-version:
@@ -50,318 +49,227 @@ jobs:
             exit 1
           fi
           VERSION="${TAG#v}"
-          VERSION="${VERSION%%-*}" # strip prerelease suffix for package version if needed
+          VERSION="${VERSION%%-*}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "### Release tag: \`$TAG\` (version \`$VERSION\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Release: \`$TAG\` (v$VERSION)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Verify VERSION file matches tag
+      - name: Verify VERSION matches tag
         run: |
-          set -euo pipefail
           FILE_VER="$(cat VERSION | tr -d ' \n\r')"
           TAG_VER="${{ steps.parse.outputs.version }}"
-          echo "VERSION file: $FILE_VER"
-          echo "Tag version:  $TAG_VER"
           if [ "$FILE_VER" != "$TAG_VER" ]; then
-            echo "::error::VERSION file ($FILE_VER) does not match tag version ($TAG_VER). Update VERSION and extension/package.json + packages/linux/arch/PKGBUILD before tagging."
+            echo "::error::VERSION file ($FILE_VER) != tag ($TAG_VER)"
             exit 1
           fi
+          echo "Version sync OK: $FILE_VER"
 
-      - name: Verify extension version matches
-        run: |
-          EXT_VER="$(node -p "require('./extension/package.json').version")"
-          TAG_VER="${{ steps.parse.outputs.version }}"
-          echo "extension/package.json: $EXT_VER"
-          if [ "$EXT_VER" != "$TAG_VER" ]; then
-            echo "::error::extension/package.json ($EXT_VER) does not match tag ($TAG_VER)"
-            exit 1
-          fi
-
-  build-extension:
+  build-linux:
     needs: check-version
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
+      - name: Free disk space
         run: |
-          npm ci
-          npm run build
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get update && sudo apt-get install -y pigz
+          df -h /
 
-      - name: Upload extension artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension
-          path: extension/dist/
-
-  build-deb:
-    needs: [check-version, build-extension]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
-        run: |
-          npm ci
-          npm run build
-
-      - name: Build .deb package
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev fakeroot
-          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/debian/build.sh
+          sudo apt-get install -y \
+            build-essential clang lld cmake ninja-build \
+            git rustup pkg-config autoconf autoconf-archive automake nasm \
+            qt6-base-dev qt6-tools-dev-tools qt6-wayland \
+            libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libssl-dev \
+            zip unzip tar curl ccache python3
 
-      - name: Upload .deb artifact
+      - name: Setup Rust
+        run: |
+          rustup default stable || true
+          rustup update || true
+
+      - name: Clone Ladybird
+        run: |
+          git clone --depth 1 --branch ${{ env.LADYBIRD_BRANCH }} \
+            ${{ env.LADYBIRD_REPO }} build/ladybird
+
+      - name: Apply Aurora branding
+        run: VERSION=${{ needs.check-version.outputs.version }} bash ./engine/brand.sh build/ladybird
+
+      - name: Build Ladybird (Release)
+        working-directory: build/ladybird
+        run: BUILD_PRESET=Release ./Meta/ladybird.py build
+
+      - name: Package Aurora Browser
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          bash ./engine/package.sh build/ladybird \
+            build/aurora-browser-${VERSION}-linux $VERSION
+
+      - name: Generate checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          bash ./engine/checksums.sh build $VERSION
+
+      - name: Create tarball
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          cd build
+          tar -czf aurora-browser-${VERSION}-linux-x86_64.tar.gz \
+            aurora-browser-${VERSION}-linux/
+
+      - name: Upload Linux build
         uses: actions/upload-artifact@v4
         with:
-          name: linux-deb
-          path: aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
-
-  build-appimage:
-    needs: [check-version, build-extension]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
-        run: |
-          npm ci
-          npm run build
-
-      - name: Build AppImage
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y file libfuse2 desktop-file-utils imagemagick
-          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/appimage/build.sh
-
-      - name: List AppImage output
-        run: ls -la build/*.AppImage
-
-      - name: Upload AppImage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: appimage
-          path: build/Aurora-Browser-*.AppImage
-
-  build-rpm:
-    needs: [check-version, build-extension]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
-        run: |
-          npm ci
-          npm run build
-
-      - name: Install rpmbuild
-        run: sudo apt-get update && sudo apt-get install -y rpm
-
-      - name: Build RPM
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/linux/redhat/build.sh
-
-      - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-rpm
-          path: build/aurora-browser-*.rpm
-
-  build-windows:
-    needs: [check-version, build-extension]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
-        run: |
-          npm ci
-          npm run build
-
-      - name: Install Mono
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mono-complete
-
-      - name: Build Windows package
-        run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
-          mkdir -p build/aurora-browser-${VERSION}-win/extension
-          mkdir -p build/aurora-browser-${VERSION}-win/profile
-
-          cp -r extension/dist build/aurora-browser-${VERSION}-win/extension/dist
-          cp extension/aurora.png build/aurora-browser-${VERSION}-win/extension/aurora.png
-          cp packages/windows/update.ps1 build/aurora-browser-${VERSION}-win/
-          cp assets/icons/aurora.png build/aurora-browser-${VERSION}-win/
-          echo 'REPO="Draftiermovie66/Aurora-Browser"' > build/aurora-browser-${VERSION}-win/update.conf
-          echo "CHROMIUM_VERSION=0" > build/aurora-browser-${VERSION}-win/version.txt
-
-          mcs -out:build/aurora-browser-${VERSION}-win/aurora-browser.exe \
-            -target:winexe \
-            -r:System.dll \
-            packages/windows/src/AuroraBrowser.cs
-
-          echo "Compiled aurora-browser.exe"
-
-      - name: Copy standalone Windows .exe
-        run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
-          cp build/aurora-browser-${VERSION}-win/aurora-browser.exe \
-             aurora-browser-${VERSION}-win.exe
-          ls -la aurora-browser-${VERSION}-win.exe
-
-      - name: Upload Windows .exe artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe
-          path: aurora-browser-${{ needs.check-version.outputs.version }}-win.exe
-
-  build-arch:
-    needs: check-version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate PKGBUILD version sync
-        run: |
-          PKG_VER="$(grep '^pkgver=' packages/linux/arch/PKGBUILD | cut -d= -f2)"
-          TAG_VER="${{ needs.check-version.outputs.version }}"
-          echo "PKGBUILD pkgver: $PKG_VER vs tag $TAG_VER"
-          if [ "$PKG_VER" != "$TAG_VER" ]; then
-            echo "::error::PKGBUILD pkgver ($PKG_VER) != tag version ($TAG_VER)"
-            exit 1
-          fi
-
-      - name: Upload Arch PKGBUILD
-        uses: actions/upload-artifact@v4
-        with:
-          name: arch-pkgbuild
+          name: linux-build
           path: |
-            packages/linux/arch/PKGBUILD
-            packages/linux/arch/aurora-browser.install
-
-      - name: Upload legacy Arch PKGBUILD (compat)
-        uses: actions/upload-artifact@v4
-        with:
-          name: arch-pkgbuild-legacy
-          path: linux/arch/PKGBUILD
+            build/aurora-browser-*-linux/
+            build/aurora-browser-*-linux-x86_64.tar.gz
+            build/checksums-SHA256-*.txt
 
   build-macos:
-    needs: [check-version, build-extension]
+    needs: check-version
     runs-on: macos-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: extension/package-lock.json
-
-      - name: Build React extension
-        working-directory: extension
+      - name: Install build dependencies
         run: |
-          npm ci
-          npm run build
+          brew install autoconf autoconf-archive automake ccache cmake \
+            libtool nasm ninja pkg-config
+          brew install llvm@21 || true
 
-      - name: Build macOS BETA app + dmg
+      - name: Clone Ladybird
         run: |
-          VERSION=${{ needs.check-version.outputs.version }} bash ./packages/macos/build.sh
+          git clone --depth 1 --branch ${{ env.LADYBIRD_BRANCH }} \
+            ${{ env.LADYBIRD_REPO }} build/ladybird
 
-      - name: List macOS output
-        run: ls -la build/macos build/*.dmg || ls -R build || true
+      - name: Apply Aurora branding
+        run: VERSION=${{ needs.check-version.outputs.version }} bash ./engine/brand.sh build/ladybird
 
-      - name: Upload macOS BETA artifact
+      - name: Build Ladybird (Release)
+        working-directory: build/ladybird
+        run: |
+          if [ -d "$(brew --prefix llvm 2>/dev/null || echo /nonexistent)" ]; then
+            export CC="$(brew --prefix llvm)/bin/clang"
+            export CXX="$(brew --prefix llvm)/bin/clang++"
+          fi
+          BUILD_PRESET=Release ./Meta/ladybird.py build
+
+      - name: Package Aurora Browser
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          bash ./engine/package.sh build/ladybird \
+            build/aurora-browser-${VERSION}-macos $VERSION
+
+      - name: Code sign (ad-hoc)
+        run: |
+          APP=$(find build -name "Aurora Browser.app" -type d | head -n1)
+          if [ -n "$APP" ]; then
+            codesign --force --deep --sign - "$APP" 2>/dev/null || true
+            echo "Ad-hoc signed: $APP"
+          fi
+
+      - name: Create DMG
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          APP=$(find build -name "Aurora Browser.app" -type d | head -n1)
+          if [ -n "$APP" ]; then
+            hdiutil create -volname "Aurora Browser" \
+              -srcfolder "$APP" -ov -format UDZO \
+              "build/Aurora-Browser-${VERSION}-macOS.dmg"
+            echo "DMG created"
+          fi
+
+      - name: Generate checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          bash ./engine/checksums.sh build $VERSION
+
+      - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
-          name: macos
+          name: macos-build
           path: |
-            build/macos/
-            build/Aurora-Browser-*.dmg
+            build/aurora-browser-*-macos/
+            build/Aurora-Browser-*-macOS.dmg
+            build/checksums-SHA256-*.txt
 
-  create-release:
-    needs: [check-version, build-deb, build-appimage, build-rpm, build-windows, build-arch, build-macos]
+  build-windows:
+    needs: check-version
     runs-on: ubuntu-latest
     steps:
-      - name: Download .deb
+      - uses: actions/checkout@v4
+
+      - name: Build info
+        run: |
+          echo "::notice::Native Windows builds require WSL2."
+          echo "Windows support is experimental. Building docs package."
+          VERSION=${{ needs.check-version.outputs.version }}
+          mkdir -p build/aurora-browser-${VERSION}-windows
+          cat > build/aurora-browser-${VERSION}-windows/README.txt <<EOF
+          Aurora Browser v${VERSION} for Windows
+          =====================================
+
+          Windows builds require WSL2 (Windows Subsystem for Linux).
+          See: https://ladybird.org/building
+
+          To build from source on Windows:
+          1. Install WSL2 with Ubuntu 24.04+
+          2. Follow the Linux build instructions
+          3. The binary will work natively on Windows
+
+          Alternatively, use the Linux build inside WSL2.
+          EOF
+
+      - name: Generate checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          bash ./engine/checksums.sh build $VERSION
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            build/aurora-browser-*-windows/
+            build/checksums-SHA256-*.txt
+
+  create-release:
+    needs: [check-version, build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-deb
-
-      - name: Download AppImage
-        uses: actions/download-artifact@v4
-        with:
-          name: appimage
-
-      - name: Download RPM
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-rpm
-
-      - name: Download Windows .exe
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-exe
-
-      - name: Download Arch PKGBUILD
-        uses: actions/download-artifact@v4
-        with:
-          name: arch-pkgbuild
-
-      - name: Download macOS
-        uses: actions/download-artifact@v4
-        with:
-          name: macos
-
-      - name: Rename PKGBUILD
-        run: mv PKGBUILD aurora-browser-PKGBUILD
-
-      - name: Make AppImage executable
-        run: chmod +x Aurora-Browser-*.AppImage || true
+          merge-multiple: true
 
       - name: List release assets
-        run: ls -la
+        run: find . -maxdepth 4 -type f | grep -v '.git' | sort
+
+      - name: Generate combined checksums
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          cat > checksums-SHA256-${VERSION}.txt <<EOF
+          # Aurora Browser v${VERSION} — SHA256 Checksums
+          # Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          EOF
+          find . -maxdepth 4 -type f \
+            \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.zip" \
+               -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" \
+               -o -name "*.AppImage" \) | sort | while read -r f; do
+            [ -f "$f" ] || continue
+            hash=$(sha256sum "$f" | cut -d' ' -f1)
+            echo "$hash  $(basename "$f")" >> checksums-SHA256-${VERSION}.txt
+          done
+          cat checksums-SHA256-${VERSION}.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -372,53 +280,43 @@ jobs:
           body: |
             ## Aurora Browser ${{ needs.check-version.outputs.tag }}
 
-            > **Note:** This release was triggered by tag `${{ needs.check-version.outputs.tag }}`. See [VERSION](https://github.com/Draftiermovie66/Aurora-Browser/blob/${{ needs.check-version.outputs.tag }}/VERSION) for the single source of truth.
+            Built on the **[Ladybird](https://ladybird.org) LibWeb engine**.
+            No Chromium. No Firefox. Custom open-source engine.
+
+            ### What's new
+            - Custom LibWeb-based rendering engine (BSD-2-Clause)
+            - Aurora Browser new-tab page
+            - Privacy-respecting defaults
+            - Cross-platform support (Linux, macOS)
 
             ### Downloads
 
             **Linux:**
-            - Ubuntu/Debian/Mint: `aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb`
-            - Fedora/RHEL/CentOS: `aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm`
-            - Arch/Manjaro: `aurora-browser-PKGBUILD` + `aurora-browser.install` (run `makepkg -si` in `packages/linux/arch`)
-            - Universal: `Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage`
+            - `aurora-browser-${{ needs.check-version.outputs.version }}-linux-x86_64.tar.gz`
+            - Extract and run `./ladybird`
+
+            **macOS:**
+            - `Aurora-Browser-${{ needs.check-version.outputs.version }}-macOS.dmg`
+            - Open DMG, drag to Applications
 
             **Windows:**
-            - `aurora-browser-${{ needs.check-version.outputs.version }}-win.exe`
+            - Build from source using WSL2 (see README.txt)
 
-            **macOS (BETA):**
-            - `Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg`
+            ### Verify downloads
+            See `checksums-SHA256-${{ needs.check-version.outputs.version }}.txt`
 
-            ### Install
-
-            **Ubuntu/Debian:**
+            ### Build from source
+            ```bash
+            git clone https://github.com/Draftiermovie66/Aurora-Browser
+            cd Aurora-Browser
+            VERSION=${{ needs.check-version.outputs.version }} bash engine/build.sh
             ```
-            sudo dpkg -i aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
-            ```
-
-            **AppImage (any Linux):**
-            ```
-            chmod +x Aurora-Browser-*.AppImage && ./Aurora-Browser-*.AppImage
-            ```
-
-            **Arch:**
-            ```
-            cd packages/linux/arch && makepkg -si
-            ```
-
-            **Windows:** Download the `.exe` (place it in a folder alongside `update.ps1`, the `extension/` dir, and a `chrome-win/` engine dir), launch `aurora-browser.exe`
-
-            **macOS BETA:** Open DMG, drag Aurora Browser to Applications
 
             ---
-
-            **Full changelog:** https://github.com/Draftiermovie66/Aurora-Browser/compare/${{ needs.check-version.outputs.tag }}...HEAD
+            **Engine:** LibWeb (Ladybird) — BSD-2-Clause
+            **Browser:** Aurora Browser — MIT
           files: |
-            aurora-browser_${{ needs.check-version.outputs.version }}_amd64.deb
-            Aurora-Browser-${{ needs.check-version.outputs.version }}-x86_64.AppImage
-            aurora-browser-${{ needs.check-version.outputs.version }}-1.x86_64.rpm
-            aurora-browser-${{ needs.check-version.outputs.version }}-win.exe
-            aurora-browser-PKGBUILD
-            Aurora-Browser-${{ needs.check-version.outputs.version }}-BETA.dmg
+            checksums-SHA256-${{ needs.check-version.outputs.version }}.txt
           draft: false
           prerelease: false
         env:

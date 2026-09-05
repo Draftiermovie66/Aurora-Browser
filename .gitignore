@@ -1,11 +1,36 @@
+# Build artifacts
+/build/
+/build-ladybird/
+
+# Engine (cloned Ladybird source)
+engine/ladybird/
+
+# Legacy Chromium directories
 chrome-linux/
 chrome-linux.old/
 chrome-win/
 chrome-win.old/
+firefox/
+firefox.old/
+firefox-mac/
+firefox-mac.old/
+
+# Profile data
 profile/
-/build/
+
+# Packaging outputs
 *.deb
 *.rpm
 *.AppImage
 *.dmg
+*.exe
+*.zip
+*.tar.bz2
+*.tar.gz
+
+# Node (extension build deps)
 node_modules/
+
+# Signing certificates
+*.pfx
+*.p12

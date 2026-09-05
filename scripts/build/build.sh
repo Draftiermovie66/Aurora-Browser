@@ -1,49 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Aurora Browser — Build Orchestrator
+# Builds the Ladybird-based Aurora Browser for the specified platform.
+
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
 
 if [ -z "${VERSION:-}" ] && [ -f "$ROOT/VERSION" ]; then
   VERSION="$(cat "$ROOT/VERSION")"
 fi
-VERSION="${VERSION:-2.0.6}"
+VERSION="${VERSION:-3.0.0}"
 
-PACKAGES="$ROOT/packages"
+ENGINE_DIR="$ROOT/engine"
 
-case "${1:-deb}" in
-  deb|debian)
-    bash "$PACKAGES/linux/debian/build.sh" "${@:2}"
-    ;;
-  rpm|redhat|fedora)
-    bash "$PACKAGES/linux/redhat/build.sh" "${@:2}"
-    ;;
-  appimage)
-    bash "$PACKAGES/linux/appimage/build.sh" "${@:2}"
-    ;;
-  arch)
-    echo "==> Arch packages are built with makepkg:"
-    echo "    cd $PACKAGES/linux/arch && makepkg -si"
-    echo "    (or: cd $ROOT/linux/arch && makepkg -si — legacy path still works)"
+case "${1:-linux}" in
+  linux|deb|rpm|appimage|arch)
+    echo "==> Building Aurora Browser for Linux..."
+    VERSION="$VERSION" bash "$ENGINE_DIR/build.sh"
     ;;
   macos|mac)
-    bash "$PACKAGES/macos/build.sh" "${@:2}"
+    echo "==> Building Aurora Browser for macOS..."
+    VERSION="$VERSION" bash "$ENGINE_DIR/build.sh"
     ;;
-  windows)
-    powershell.exe -File "$PACKAGES/windows/build.ps1" "${@:2}" 2>/dev/null \
-      || echo "Run 'powershell.exe .\\packages\\windows\\build.ps1' on Windows."
+  windows|win)
+    echo "==> Windows build requires WSL2."
+    echo "    Install WSL2, then run: bash engine/build.sh"
+    echo "    Or use: ./Meta/ladybird.py run (inside WSL2)"
     ;;
-  release)
-    bash "$DIR/release.sh" "${2:-${VERSION}}" "${3:---dry}"
+  sign)
+    echo "==> Signing release binaries..."
+    VERSION="$VERSION" bash "$ENGINE_DIR/sign.sh" "${2:-$ROOT/build}" "$VERSION"
+    ;;
+  checksums)
+    echo "==> Generating checksums..."
+    VERSION="$VERSION" bash "$ENGINE_DIR/checksums.sh" "${2:-$ROOT/build}" "$VERSION"
+    ;;
+  clean)
+    echo "==> Cleaning build artifacts..."
+    rm -rf "$ROOT/build"
+    echo "    Done."
     ;;
   *)
-    echo "Usage: $0 {deb|rpm|appimage|arch|macos|windows|release} [version]"
+    echo "Usage: $0 {linux|macos|windows|sign|checksums|clean} [version]"
     echo ""
-    echo "  deb      - Debian/Ubuntu (.deb)"
-    echo "  rpm      - Fedora/RHEL/RedHat (.rpm)"
-    echo "  appimage - Universal Linux (.AppImage)"
-    echo "  arch     - Arch Linux (PKGBUILD)"
-    echo "  macos    - macOS BETA (.app + .dmg)"
-    echo "  windows  - Windows (.exe + zip)"
+    echo "  linux      - Build for Linux (requires Clang, Qt6, Ninja)"
+    echo "  macos      - Build for macOS (requires Xcode, Homebrew deps)"
+    echo "  windows    - Build for Windows (requires WSL2)"
+    echo "  sign       - Code sign release binaries"
+    echo "  checksums  - Generate SHA256 checksums"
+    echo "  clean      - Remove build directory"
     exit 1
     ;;
 esac
