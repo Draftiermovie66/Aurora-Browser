@@ -3,7 +3,7 @@ name: Release Drafter
 on:
   push:
     branches: [main]
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
@@ -16,6 +16,8 @@ jobs:
       contents: write
       pull-requests: read
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - uses: release-drafter/release-drafter@v6
         env:
