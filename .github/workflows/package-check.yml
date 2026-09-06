@@ -18,7 +18,7 @@ jobs:
     name: Validate build scripts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Validate engine scripts
         run: |
@@ -63,7 +63,7 @@ jobs:
     name: Validate VERSION
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check VERSION format
         run: |
@@ -80,7 +80,7 @@ jobs:
     name: Validate workflow YAML
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check YAML syntax
         run: |
@@ -104,7 +104,7 @@ jobs:
     name: Validate newtab page
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check newtab HTML exists
         run: |
