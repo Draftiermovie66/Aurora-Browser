@@ -152,7 +152,7 @@ jobs:
           cat checksums-SHA256-${VERSION}.txt
 
       - name: Upload Linux build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-build
           path: |
@@ -229,7 +229,7 @@ jobs:
           fi
 
       - name: Upload macOS build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-build
           path: |
@@ -299,7 +299,7 @@ jobs:
           fi
 
       - name: Upload Windows build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-build
           path: |
