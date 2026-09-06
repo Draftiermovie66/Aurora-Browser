@@ -90,6 +90,22 @@ jobs:
             zip unzip tar curl ccache python3 \
             rpm dpkg-dev file
 
+      - name: Configure Qt6 CMake path
+        run: |
+          # Detect Qt6 installation and set CMAKE_PREFIX_PATH for vcpkg
+          if pkg-config --exists Qt6Core; then
+            QT6_LIBDIR=$(pkg-config --variable=libdir Qt6Core)
+            QT6_CMAKE_PATH=$(dirname "$QT6_LIBDIR")/cmake/Qt6
+            if [ -d "$QT6_CMAKE_PATH" ]; then
+              echo "CMAKE_PREFIX_PATH=$QT6_CMAKE_PATH" >> $GITHUB_ENV
+              echo "✓ Qt6 CMake path configured: $QT6_CMAKE_PATH"
+            else
+              echo "⚠ Qt6 CMake path not found, vcpkg will attempt to build from source"
+            fi
+          else
+            echo "⚠ Qt6Core not found via pkg-config"
+          fi
+
       - name: Install Rust
         run: |
           if ! command -v rustup &>/dev/null; then
@@ -112,6 +128,8 @@ jobs:
         run: |
           source "$HOME/.cargo/env" 2>/dev/null || true
           BUILD_PRESET=Release ./Meta/ladybird.py build
+        env:
+          CMAKE_PREFIX_PATH: ${{ env.CMAKE_PREFIX_PATH }}
 
       - name: Package Aurora Browser
         run: |
