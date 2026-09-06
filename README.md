@@ -1,4 +1,4 @@
-# Aurora Browser
+# Aurora Browser V2.1.0
 
 A custom open-source web browser built on the **[Ladybird](https://ladybird.org) LibWeb engine**.
 
