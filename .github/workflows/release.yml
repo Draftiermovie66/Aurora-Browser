@@ -21,7 +21,7 @@ permissions:
 
 env:
   LADYBIRD_REPO: "https://github.com/LadybirdBrowser/ladybird.git"
-  LADYBIRD_BRANCH: "main"
+  LADYBIRD_BRANCH: "master"
 
 jobs:
   check-version:

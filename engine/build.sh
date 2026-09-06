@@ -12,7 +12,7 @@ fi
 VERSION="${VERSION:-3.0.0}"
 
 LADYBIRD_REPO="${LADYBIRD_REPO:-https://github.com/LadybirdBrowser/ladybird.git}"
-LADYBIRD_BRANCH="${LADYBIRD_BRANCH:-main}"
+LADYBIRD_BRANCH="${LADYBIRD_BRANCH:-master}"
 BUILD_DIR="$ROOT/build/ladybird"
 INSTALL_DIR="$ROOT/build/aurora-browser-${VERSION}"
 
