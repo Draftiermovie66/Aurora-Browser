@@ -14,38 +14,27 @@ VERSION="${VERSION:-3.0.0}"
 
 echo "  Branding Ladybird as Aurora Browser v${VERSION}..."
 
-# Portable sed in-place edit (works on both Linux and macOS)
-sed_inplace() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' "$@"
-  else
-    sed -i "$@"
+# Portable in-place edit using perl (works on Linux and macOS)
+replace() {
+  local pattern="$1"
+  local file="$2"
+  if [ -f "$file" ]; then
+    perl -pi -e "$pattern" "$file"
   fi
 }
 
 # ---- CMakeLists.txt — Rename project ----
-CMAKE="$LADYBIRD_DIR/CMakeLists.txt"
-if [ -f "$CMAKE" ]; then
-  sed_inplace 's/project(ladybird /project(aurora-browser /g' "$CMAKE"
-  sed_inplace 's/set(LADYBIRD_VENDOR ".*")/set(LADYBIRD_VENDOR "Aurora Browser")/g' "$CMAKE" || true
-fi
+replace 's/project\(ladybird /project(aurora-browser /g' "$LADYBIRD_DIR/CMakeLists.txt"
+replace 's/set\(LADYBIRD_VENDOR ".*"\)/set(LADYBIRD_VENDOR "Aurora Browser")/g' "$LADYBIRD_DIR/CMakeLists.txt"
 
 # ---- App name in UI ----
-QT_MAIN="$LADYBIRD_DIR/UI/Qt/MainWidget.cpp"
-if [ -f "$QT_MAIN" ]; then
-  sed_inplace 's/"Ladybird"/"Aurora Browser"/g' "$QT_MAIN"
-fi
+replace 's/"Ladybird"/"Aurora Browser"/g' "$LADYBIRD_DIR/UI/Qt/MainWidget.cpp"
 
-APPKIT_MAIN="$LADYBIRD_DIR/UI/AppKit/main.mm"
-if [ -f "$APPKIT_MAIN" ]; then
-  sed_inplace 's/@"Ladybird"/@"Aurora Browser"/g' "$APPKIT_MAIN"
-fi
+# AppKit title (macOS)
+replace 's/@"Ladybird"/@"Aurora Browser"/g' "$LADYBIRD_DIR/UI/AppKit/main.mm"
 
 # ---- Default new tab URL ----
-SETTINGS="$LADYBIRD_DIR/UI/Qt/Settings.cpp"
-if [ -f "$SETTINGS" ]; then
-  sed_inplace 's|about:blank|about:blank|g' "$SETTINGS" || true
-fi
+replace 's|about:blank|about:blank|g' "$LADYBIRD_DIR/UI/Qt/Settings.cpp"
 
 # ---- Icons ----
 AURORA_ICON="$ROOT/assets/icons/aurora.png"
@@ -64,10 +53,7 @@ if [ -f "$AURORA_ICON" ]; then
 fi
 
 # ---- Branding in about dialog ----
-ABOUT="$LADYBIRD_DIR/UI/Qt/AboutDialog.cpp"
-if [ -f "$ABOUT" ]; then
-  sed_inplace 's/Ladybird/Aurora Browser/g' "$ABOUT"
-  sed_inplace 's/Andreas Kling/Aurora Browser Team/g' "$ABOUT" || true
-fi
+replace 's/Ladybird/Aurora Browser/g' "$LADYBIRD_DIR/UI/Qt/AboutDialog.cpp"
+replace 's/Andreas Kling/Aurora Browser Team/g' "$LADYBIRD_DIR/UI/Qt/AboutDialog.cpp"
 
 echo "  Branding applied."
