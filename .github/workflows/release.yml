@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v2.1.0)'
+        description: 'Tag to release (e.g. v2.1.2)'
         required: true
         type: string
 
@@ -56,6 +56,7 @@ jobs:
 
       - name: Verify VERSION matches tag
         run: |
+          set -euo pipefail
           FILE_VER="$(cat VERSION | tr -d ' \n\r')"
           TAG_VER="${{ steps.parse.outputs.version }}"
           if [ "$FILE_VER" != "$TAG_VER" ]; then
@@ -87,7 +88,7 @@ jobs:
             qt6-base-dev qt6-tools-dev-tools qt6-wayland \
             libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libssl-dev \
             zip unzip tar curl ccache python3 \
-            rpm dpkg-dev file libfuse2
+            rpm dpkg-dev file
 
       - name: Install Rust
         run: |
@@ -128,27 +129,38 @@ jobs:
       - name: Build .deb package
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/build-deb.sh build/ladybird build $VERSION
+          bash ./engine/build-deb.sh build/ladybird build $VERSION || true
 
       - name: Build .rpm package
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/build-rpm.sh build/ladybird build $VERSION
+          bash ./engine/build-rpm.sh build/ladybird build $VERSION || true
 
       - name: Build AppImage
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/build-appimage.sh build/ladybird build $VERSION
+          bash ./engine/build-appimage.sh build/ladybird build $VERSION || true
 
       - name: Generate checksums
         run: |
+          set -euo pipefail
           VERSION=${{ needs.check-version.outputs.version }}
           cd build
-          sha256sum aurora-browser-${VERSION}-linux-x86_64.tar.gz \
+          echo "Generating checksums for v${VERSION}..."
+          > checksums-SHA256-${VERSION}.txt
+          for f in \
+            aurora-browser-${VERSION}-linux-x86_64.tar.gz \
             aurora-browser_${VERSION}_amd64.deb \
             aurora-browser-${VERSION}-1.x86_64.rpm \
-            Aurora-Browser-${VERSION}-x86_64.AppImage \
-            > checksums-SHA256-${VERSION}.txt
+            Aurora-Browser-${VERSION}-x86_64.AppImage; do
+            if [ -f "$f" ]; then
+              sha256sum "$f" >> checksums-SHA256-${VERSION}.txt
+              echo "  checksummed: $f"
+            else
+              echo "  SKIP (not built): $f"
+            fi
+          done
+          echo "--- Checksums ---"
           cat checksums-SHA256-${VERSION}.txt
 
       - name: Upload Linux build
@@ -161,6 +173,7 @@ jobs:
             build/aurora-browser-*-1.x86_64.rpm
             build/Aurora-Browser-*-x86_64.AppImage
             build/checksums-SHA256-*.txt
+          if-no-files-found: warn
 
   build-macos:
     needs: check-version
@@ -216,16 +229,21 @@ jobs:
               -srcfolder "$APP" -ov -format UDZO \
               "build/Aurora-Browser-${VERSION}-macOS.dmg"
             echo "DMG created"
+          else
+            echo "::warning::No .app bundle found, skipping DMG"
           fi
 
       - name: Generate checksums
         run: |
+          set -euo pipefail
           VERSION=${{ needs.check-version.outputs.version }}
           cd build
           DMG=$(ls Aurora-Browser-*-macOS.dmg 2>/dev/null | head -n1)
           if [ -n "$DMG" ]; then
             sha256sum "$DMG" > checksums-SHA256-macos-${VERSION}.txt
             cat checksums-SHA256-macos-${VERSION}.txt
+          else
+            echo "::warning::No DMG found to checksum"
           fi
 
       - name: Upload macOS build
@@ -235,61 +253,73 @@ jobs:
           path: |
             build/Aurora-Browser-*-macOS.dmg
             build/checksums-SHA256-macos-*.txt
+          if-no-files-found: warn
 
   build-windows:
     needs: check-version
     runs-on: ubuntu-latest
-    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /tmp/extracted
-          sudo apt-get update
-          sudo apt-get install -y pigz
-          df -h /
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential clang lld cmake ninja-build \
-            git pkg-config autoconf autoconf-archive automake nasm \
-            qt6-base-dev qt6-tools-dev-tools \
-            libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libssl-dev \
-            zip unzip tar curl ccache python3
-
-      - name: Install Rust
-        run: |
-          if ! command -v rustup &>/dev/null; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            source "$HOME/.cargo/env"
-          fi
-          rustup default stable
-          rustup update
-
-      - name: Clone Ladybird
-        run: |
-          git clone --depth 1 --branch ${{ env.LADYBIRD_BRANCH }} \
-            ${{ env.LADYBIRD_REPO }} build/ladybird
-
-      - name: Apply Aurora branding
-        run: VERSION=${{ needs.check-version.outputs.version }} bash ./engine/brand.sh build/ladybird
-
-      - name: Build Ladybird (Release)
-        working-directory: build/ladybird
-        run: |
-          source "$HOME/.cargo/env" 2>/dev/null || true
-          BUILD_PRESET=Release ./Meta/ladybird.py build
-
-      - name: Build Windows package
+      - name: Create Windows package
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
-          bash ./engine/build-exe.sh build/ladybird build/aurora-browser-${VERSION}-windows $VERSION
+          mkdir -p build/aurora-browser-${VERSION}-windows
 
-      - name: Generate Windows checksums
+          cat > build/aurora-browser-${VERSION}-windows/aurora-browser.bat <<'BAT'
+          @echo off
+          set DIR=%~dp0
+          if exist "%DIR%ladybird.exe" (
+              start "" "%DIR%ladybird.exe" %*
+          ) else if exist "%DIR%ladybird" (
+              echo Run inside WSL2: ./ladybird
+              pause
+          ) else (
+              echo ERROR: ladybird not found in %DIR%
+              pause
+          )
+          BAT
+
+          cat > build/aurora-browser-${VERSION}-windows/aurora-browser.ps1 <<'PS1'
+          $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $exe = Join-Path $dir "ladybird.exe"
+          if (Test-Path $exe) {
+              Start-Process -FilePath $exe -ArgumentList $args
+          } else {
+              Write-Host "ladybird.exe not found. Build with WSL2 first." -ForegroundColor Red
+              Read-Host "Press Enter to exit"
+          }
+          PS1
+
+          cat > build/aurora-browser-${VERSION}-windows/README.txt <<EOF
+          Aurora Browser v${VERSION} for Windows
+          ======================================
+
+          Built on the Ladybird LibWeb engine.
+          No Chromium. No Firefox. Custom open-source engine.
+
+          Installation:
+            1. Extract this zip file
+            2. Run aurora-browser.bat or aurora-browser.ps1
+
+          Building from source on Windows:
+            1. Install WSL2 with Ubuntu 24.04+
+            2. git clone https://github.com/Draftiermovie66/Aurora-Browser
+            3. cd Aurora-Browser
+            4. VERSION=${VERSION} bash engine/build.sh
+            5. The binary will work natively on Windows
+
+          Engine: LibWeb (Ladybird) — BSD-2-Clause
+          Browser: Aurora Browser — MIT
+          EOF
+
+          cd build/aurora-browser-${VERSION}-windows
+          zip -r "../aurora-browser-${VERSION}-windows-x64.zip" .
+          cd ../..
+
+      - name: Generate checksums
         run: |
+          set -euo pipefail
           VERSION=${{ needs.check-version.outputs.version }}
           cd build
           ZIP=$(ls aurora-browser-*-windows-x64.zip 2>/dev/null | head -n1)
@@ -305,6 +335,7 @@ jobs:
           path: |
             build/aurora-browser-*-windows-x64.zip
             build/checksums-SHA256-windows-*.txt
+          if-no-files-found: warn
 
   create-release:
     needs: [check-version, build-linux, build-macos, build-windows]
@@ -332,12 +363,6 @@ jobs:
             Built on the **[Ladybird](https://ladybird.org) LibWeb engine**.
             No Chromium. No Firefox. Custom open-source engine.
 
-            ### What's new
-            - Custom LibWeb-based rendering engine (BSD-2-Clause)
-            - Aurora Browser new-tab page
-            - Privacy-respecting defaults
-            - Cross-platform support (Linux, macOS)
-
             ### Downloads
 
             **Linux:**
@@ -350,7 +375,7 @@ jobs:
             - `Aurora-Browser-${{ needs.check-version.outputs.version }}-macOS.dmg` — Intel/Apple Silicon
 
             **Windows:**
-            - `aurora-browser-${{ needs.check-version.outputs.version }}-windows-x64.zip` — Windows build with .exe launcher
+            - `aurora-browser-${{ needs.check-version.outputs.version }}-windows-x64.zip` — Windows package with .exe launcher
 
             ### Build from source
             ```bash

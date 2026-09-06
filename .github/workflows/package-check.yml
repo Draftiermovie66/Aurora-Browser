@@ -9,6 +9,10 @@ on:
       - 'LICENSE'
       - '.gitignore'
 
+concurrency:
+  group: package-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-scripts:
     name: Validate build scripts
@@ -16,12 +20,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate engine build scripts
+      - name: Validate engine scripts
         run: |
-          set -e
-          for f in engine/build.sh engine/brand.sh engine/package.sh engine/sign.sh engine/checksums.sh; do
-            bash -n "$f" && echo "OK: $f"
+          set -euo pipefail
+          FAIL=0
+          for f in engine/*.sh; do
+            if bash -n "$f" 2>/dev/null; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f"
+              FAIL=1
+            fi
           done
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Script syntax errors found"
+            exit 1
+          fi
 
       - name: Validate installer build script
         run: |
@@ -31,6 +45,20 @@ jobs:
         run: |
           bash -n scripts/build/build.sh && echo "OK: scripts/build/build.sh"
 
+      - name: Check scripts are executable
+        run: |
+          set -euo pipefail
+          FAIL=0
+          for f in engine/*.sh installer/build.sh scripts/build/build.sh; do
+            if [ -x "$f" ]; then
+              echo "OK (executable): $f"
+            else
+              echo "WARN: $f is not executable"
+              chmod +x "$f"
+              echo "  Fixed: made $f executable"
+            fi
+          done
+
   validate-version:
     name: Validate VERSION
     runs-on: ubuntu-latest
@@ -39,6 +67,7 @@ jobs:
 
       - name: Check VERSION format
         run: |
+          set -euo pipefail
           VER=$(cat VERSION | tr -d ' \n\r')
           echo "VERSION=$VER"
           if [[ ! "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -55,16 +84,45 @@ jobs:
 
       - name: Check YAML syntax
         run: |
+          set -euo pipefail
           python3 -c "
           import yaml, sys, glob
           ok = True
           for f in sorted(glob.glob('.github/workflows/*.yml')):
               try:
                   yaml.safe_load(open(f))
-                  print('OK: ' + f)
+                  print(f'OK: {f}')
               except Exception as e:
-                  print('FAIL: ' + f + ': ' + str(e))
+                  print(f'FAIL: {f}: {e}')
                   ok = False
           if not ok:
               sys.exit(1)
+          print('All workflow YAML files valid')
+          "
+
+  validate-newtab:
+    name: Validate newtab page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check newtab HTML exists
+        run: |
+          if [ -f engine/newtab/index.html ]; then
+            echo "OK: engine/newtab/index.html exists"
+          else
+            echo "::error::engine/newtab/index.html missing"
+            exit 1
+          fi
+
+      - name: Validate HTML
+        run: |
+          python3 -c "
+          import re
+          with open('engine/newtab/index.html') as f:
+              html = f.read()
+          if '<html' in html.lower() and '</html>' in html.lower():
+              print('OK: HTML structure valid')
+          else:
+              print('WARN: HTML structure may be incomplete')
           "
